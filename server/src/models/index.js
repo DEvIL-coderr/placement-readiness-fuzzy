@@ -107,6 +107,10 @@ const snapshotSchema = new Schema(
     hopping: Number,
     patternClass: String,
     weeks: Number,
+    /** per-domain mastery and per-role readiness, kept so the pilot can compare them with faculty rubrics */
+    domains: Schema.Types.Mixed,
+    roles: Schema.Types.Mixed,
+    patterns: Schema.Types.Mixed,
   },
   { timestamps: true },
 );

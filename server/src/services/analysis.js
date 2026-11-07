@@ -50,6 +50,9 @@ export async function analyzeStudent(user, { persist = true, now = new Date() } 
         momentum: d.momentum, consistency: d.consistency, balance: d.balance, surge: d.surge, hopping: d.hopping,
         patternClass: result.trajectory.patternClass,
         weeks: result.meta.weeks,
+        domains: Object.fromEntries(Object.entries(result.domains).map(([k, v]) => [k, v.mastery])),
+        roles: Object.fromEntries(Object.entries(result.roles ?? {}).map(([k, v]) => [k, v.score])),
+        patterns: result.trajectory.patterns,
       },
       { upsert: true, new: true },
     );

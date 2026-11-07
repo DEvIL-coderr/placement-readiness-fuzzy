@@ -86,9 +86,18 @@ router.delete('/calibration', wrap(async (req, res) => { await Setting.deleteOne
 router.get('/export/dataset.csv', wrap(async (req, res) => {
   const pairs = await ratingPairs();
   const snaps = await Snapshot.find().sort({ day: 1 }).lean();
-  const cols = ['student', 'day', 'score', 'projected', 'confidence', 'skillState', 'trajectoryQuality', 'momentum', 'consistency', 'balance', 'surge', 'hopping', 'patternClass', 'weeks'];
-  const esc = (v) => (v === undefined || v === null ? '' : String(v).includes(',') ? `"${v}"` : v);
-  const lines = [cols.join(','), ...snaps.map((s) => cols.map((c) => esc(s[c])).join(','))];
+  const scalar = ['student', 'day', 'score', 'projected', 'evidenceSufficiency', 'engineVersion', 'configHash', 'skillState', 'trajectoryQuality', 'momentum', 'consistency', 'balance', 'surge', 'hopping', 'patternClass', 'weeks'];
+  const domainKeys = [...new Set(snaps.flatMap((s) => Object.keys(s.domains ?? {})))].sort();
+  const roleKeys = [...new Set(snaps.flatMap((s) => Object.keys(s.roles ?? {})))].sort();
+  const patternKeys = [...new Set(snaps.flatMap((s) => Object.keys(s.patterns ?? {})))].sort();
+  const cols = [...scalar, ...domainKeys.map((k) => `domain_${k}`), ...roleKeys.map((k) => `role_${k}`), ...patternKeys.map((k) => `pattern_${k}`)];
+  const val = (s, c) => (c.startsWith('domain_') ? s.domains?.[c.slice(7)] : c.startsWith('role_') ? s.roles?.[c.slice(5)] : c.startsWith('pattern_') ? s.patterns?.[c.slice(8)] : s[c]);
+  const esc = (v) => {
+    if (v === undefined || v === null) return '';
+    const t = String(v);
+    return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const lines = [cols.join(','), ...snaps.map((s) => cols.map((c) => esc(val(s, c))).join(','))];
   const key = (p) => `${p.student}|${p.day}`;
   const ratingBy = new Map(pairs.map((p) => [key(p), p.rating]));
   lines[0] += ',expert_rating';
