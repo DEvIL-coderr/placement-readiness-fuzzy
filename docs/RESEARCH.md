@@ -53,3 +53,16 @@ Pilot 60–150 students × 8–10 weeks; faculty rating every 2 weeks; actual pl
 
 ## 9. Publication hygiene
 Write all text in your own words; run a similarity check; cite Smith et al. for linkography and every dataset/baseline; choose venues by scope (e.g. fuzzy-systems, applied soft computing, educational technology) and verify indexing (Scopus/UGC-CARE) and avoid predatory journals. Acceptance cannot be assured; novelty here rests on the combination above and must be validated by your supervisor.
+
+## 10. Search log (second pass, web search restricted to publisher domains)
+Scopus/IEEE/ACM could not be queried directly (login/paywall; no Scopus public search). Domain-restricted web searches were run for: fuzzy placement readiness; fuzzy employability + temporal/weekly; fuzzy campus placement + skill-gap recommendation; explainable/longitudinal placement ML; linkography in education; interview-preparation recommenders. **Repeat on Scopus/IEEE/ACM and log counts.** Suggested Scopus string:
+`TITLE-ABS-KEY(("placement" OR "employability" OR "job readiness") AND ("fuzzy") AND ("trajectory" OR "longitudinal" OR "temporal" OR "weekly" OR "linkography"))`
+
+Closest neighbours found (read abstracts/pages before citing; only the Zenodo one was actually opened):
+- Patil et al., *Student-Centric Explainable-AI Framework for Campus Placement Prediction*, 2026 — RF 89.5% + SHAP, readiness score + suggestions; page gives no temporal data. **Nearest competitor on "readiness + explanation"; contrast: crisp ML, no trajectory/fuzzy/uncertainty.**
+- *Finding the combined effect of academic and non-academic performance on management students' placement: a fuzzy logic approach* (ScienceDirect, S1472811723000757) — fuzzy, placement, static (page not retrievable).
+- *Optimized Technique for College Students Job Searching Strategies Using Fuzzy Logic Control with Cuckoo Search*, Int. J. Comput. Intell. Syst., 2024 — fuzzy + metaheuristic tuning (not opened).
+- *A Development of Fuzzy Logic Expert-Based Recommender System for Improving Students' Employability*, IEEE 9232543 — fuzzy recommender (not opened).
+- *Predicting Long-Term Student Outcomes from Short-Term EdTech Log Data*, ACM 2025 — temporal logs, non-fuzzy (not opened).
+- Fuzzy competence-space learning-path papers (MDPI Axioms 2025) — fuzzy recommendation, no placement.
+No fuzzy-linkography-in-education paper surfaced.
