@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { go } from '../hash.js';
+import { CONSENT_PARAGRAPHS, CONSENT_TITLE } from '../consentText.js';
 
 export function AuthPage({ mode }) {
   const { login, register } = useAuth();
-  const [form, setForm] = useState({ name: '', email: '', password: '', targetRole: 'general' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', targetRole: 'general', consent: false });
   const [roles, setRoles] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,7 +20,7 @@ export function AuthPage({ mode }) {
     setBusy(true);
     try {
       if (mode === 'login') await login(form.email, form.password);
-      else await register(form);
+      else await register({ ...form, consent: form.consent });
       go('/');
     } catch (err) {
       setError(err.message);
@@ -39,6 +40,13 @@ export function AuthPage({ mode }) {
             <select value={form.targetRole} onChange={set('targetRole')}>{Object.entries(roles).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           </label>
         )}
+        {mode === 'register' && (
+          <details>
+            <summary>{CONSENT_TITLE} (read before registering)</summary>
+            {CONSENT_PARAGRAPHS.map((p, i) => <p key={i} className="small">{p}</p>)}
+          </details>
+        )}
+        {mode === 'register' && <label><input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} required /> I have read the study consent and agree to take part.</label>}
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Register'}</button>
         <p className="muted small">{mode === 'login' ? <>New here? <a href="#/register">Create an account</a></> : <>Already registered? <a href="#/login">Sign in</a></>}</p>

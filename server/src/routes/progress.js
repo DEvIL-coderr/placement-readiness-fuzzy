@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireConsent } from '../middleware/auth.js';
 import { validate, wrap } from '../middleware/util.js';
 import { Attempt, PracticalLog } from '../models/index.js';
 import { buildSeries, isoDate, weekStart } from '../services/weekly.js';
@@ -15,7 +15,7 @@ const practicalBody = z.object({
 }).refine((b) => b.projects !== undefined || b.mock !== undefined, 'Provide projects and/or mock score');
 
 /** Log self-assessed project quality and mock-interview score (0-100) for a week. */
-router.post('/practical', requireAuth, validate(practicalBody), wrap(async (req, res) => {
+router.post('/practical', requireAuth, requireConsent, validate(practicalBody), wrap(async (req, res) => {
   const ws = isoDate(weekStart(req.body.weekStart ?? new Date()));
   const set = {};
   for (const k of ['projects', 'mock', 'note']) if (req.body[k] !== undefined) set[k] = req.body[k];

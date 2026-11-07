@@ -52,6 +52,6 @@ Self-reported project and mock scores, single institution, small sample, short w
 
 ## 9. Application changes needed before the pilot
 - ~~Faculty form with domain, pattern and priority ratings, with blind mode.~~ Done (not yet tested against a live database).
-- Consent screen at registration and a data-export or deletion option.
+- ~~Consent screen at registration and a data-export or deletion option.~~ Done (not yet tested against a live database): registration requires consent; existing students see a consent gate; quiz and log submissions are refused without current consent; students can download their data and delete their account (this also deletes faculty ratings about them). The consent text in `client/src/consentText.js` is a **template** with placeholders and must be replaced by the ethics-committee-approved wording (bump `CONSENT_VERSION` in `server/src/services/privacy.js` when it changes).
 - Pseudonymised analysis export.
 - Decide whether the forecast stays a contribution (it must beat L) or becomes exploratory.

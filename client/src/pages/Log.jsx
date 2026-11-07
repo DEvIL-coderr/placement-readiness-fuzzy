@@ -1,6 +1,43 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
+import { go } from '../hash.js';
+
+function YourData() {
+  const { logout } = useAuth();
+  const [pw, setPw] = useState('');
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState('');
+  async function download() {
+    setMsg('');
+    try {
+      const res = await api('/privacy/export', { raw: true });
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = 'my-placement-readiness-data.json'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setMsg(e.message); }
+  }
+  async function remove(e) {
+    e.preventDefault(); setMsg('');
+    try { await api('/privacy/account', { method: 'DELETE', body: { password: pw } }); logout(); go('/login'); }
+    catch (err) { setMsg(err.message); }
+  }
+  return (
+    <section className="card span-12">
+      <h3>Your data</h3>
+      <p className="muted small">You can download everything stored about you, or withdraw from the study and delete your account and all your data. Deletion cannot be undone.</p>
+      <p><button onClick={download}>Download my data (JSON)</button> <button onClick={() => setOpen(!open)}>{open ? 'Cancel' : 'Withdraw and delete my account'}</button></p>
+      {open && (
+        <form onSubmit={remove}>
+          <label>Confirm with your password<input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required autoComplete="current-password" /></label>
+          <button className="primary" type="submit">Permanently delete everything</button>
+        </form>
+      )}
+      {msg && <p className="error" role="alert">{msg}</p>}
+    </section>
+  );
+}
 
 export default function Log() {
   const { user, setUser } = useAuth();
@@ -67,6 +104,7 @@ export default function Log() {
               <tbody>{items.map((i) => <tr key={i._id}><td>{i.weekStart}</td><td>{i.projects ?? '—'}</td><td>{i.mock ?? '—'}</td></tr>)}</tbody></table>
           )}
         </section>
+        <YourData />
       </div>
     </>
   );

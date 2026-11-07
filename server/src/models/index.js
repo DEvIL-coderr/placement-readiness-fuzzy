@@ -13,6 +13,8 @@ const userSchema = new Schema(
     role: { type: String, enum: ['student', 'admin', 'faculty'], default: 'student' },
     targetRole: { type: String, enum: Object.keys(ROLE_PROFILES), default: 'general' },
     placementDate: { type: Date },
+    consentVersion: { type: String },
+    consentAt: { type: Date },
   },
   { timestamps: true },
 );

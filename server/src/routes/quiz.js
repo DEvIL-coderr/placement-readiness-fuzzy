@@ -2,7 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { SUBJECTS } from '../engine/config.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireConsent } from '../middleware/auth.js';
 import { validate, wrap } from '../middleware/util.js';
 import { Attempt, Question } from '../models/index.js';
 
@@ -30,7 +30,7 @@ const submitBody = z.object({
 });
 
 /** Grade server-side and record every attempt (this is the data the fuzzy engine consumes). */
-router.post('/submit', requireAuth, validate(submitBody), wrap(async (req, res) => {
+router.post('/submit', requireAuth, requireConsent, validate(submitBody), wrap(async (req, res) => {
   const seen = new Set();
   const answers = req.body.answers.filter((a) => (seen.has(a.questionId) ? false : seen.add(a.questionId)));
   const questions = await Question.find({ _id: { $in: answers.map((a) => a.questionId) }, type: 'mcq', active: true }).lean();

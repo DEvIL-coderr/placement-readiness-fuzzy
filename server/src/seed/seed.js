@@ -6,6 +6,7 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { SUBJECTS } from '../engine/config.js';
+import { CONSENT_VERSION } from '../services/privacy.js';
 import { ARCHETYPES, mulberry32, simulateStudent } from '../engine/simulate.js';
 import { Attempt, PracticalLog, Question, Subject, User } from '../models/index.js';
 import { QUESTIONS, SUBJECT_DESCRIPTIONS } from './questions.js';
@@ -44,7 +45,7 @@ if (demo) {
   for (const archetype of ARCHETYPES) {
     const email = `demo.${archetype}@example.com`;
     await User.deleteOne({ email });
-    const user = await User.create({ name: `Demo ${archetype}`, email, passwordHash, targetRole: 'software_developer' });
+    const user = await User.create({ name: `Demo ${archetype}`, email, passwordHash, targetRole: 'software_developer', consentVersion: CONSENT_VERSION, consentAt: new Date() }); // synthetic demo students
     const rng = mulberry32(seed++);
     const sim = simulateStudent(archetype, rng, { weeks });
     const docs = sim.attempts

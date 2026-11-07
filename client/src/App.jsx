@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth.jsx';
 import Admin from './pages/Admin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Demo from './pages/Demo.jsx';
+import Consent from './pages/Consent.jsx';
 import Faculty from './pages/Faculty.jsx';
 import Interview from './pages/Interview.jsx';
 import Log from './pages/Log.jsx';
@@ -20,7 +21,7 @@ const NAV = [
 ];
 
 function Shell() {
-  const { user, ready, logout } = useAuth();
+  const { user, ready, logout, setUser } = useAuth();
   const { path } = useRoute();
 
   if (!ready) return <p className="muted pad">Loading…</p>;
@@ -29,6 +30,7 @@ function Shell() {
     return <AuthPage mode={path === '/register' ? 'register' : 'login'} />;
   }
 
+  if (user.consentRequired) return <Consent user={user} onAccepted={() => setUser({ ...user, consentRequired: false })} onDecline={() => { logout(); go('/login'); }} />;
   const isFaculty = user.role === 'faculty';
   const items = isFaculty ? [['/faculty', 'Faculty rating']] : user.role === 'admin' ? [...NAV, ['/admin', 'Admin']] : NAV;
   let page;

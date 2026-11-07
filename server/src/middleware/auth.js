@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
+import { needsConsent } from '../services/privacy.js';
 
 export const JWT_SECRET = () => {
   const s = process.env.JWT_SECRET;
@@ -25,6 +26,12 @@ export async function requireAuth(req, res, next) {
 }
 
 export const requireRole = (...roles) => (req, res, next) => (roles.includes(req.user?.role) ? next() : res.status(403).json({ error: 'Access denied for this account type' }));
+
+/** Study data is only collected from students who accepted the current consent text. */
+export function requireConsent(req, res, next) {
+  if (needsConsent(req.user)) return res.status(403).json({ error: 'Please accept the study consent first', code: 'CONSENT_REQUIRED' });
+  return next();
+}
 
 export function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });

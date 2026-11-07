@@ -41,3 +41,4 @@ Default admin: `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` (change them).
 - Evaluation now includes a static+linear-trend baseline, which beats the proposed forecast in simulation; see `docs/RESEARCH.md` section 6.
 - Not yet run against a live MongoDB; run `npm test` in `server/` (38 tests, engine only) and report any API errors.
 - Blind faculty rating: `faculty` role, `/api/faculty/*` (no system output returned), faculty CSV export, admin creates faculty accounts. 41 engine/service tests.
+- Consent and data rights: consent required at registration and enforced server-side, student data export (`GET /api/privacy/export`) and account deletion (`DELETE /api/privacy/account`). Consent text is a template to be replaced with the ethics-approved version.
