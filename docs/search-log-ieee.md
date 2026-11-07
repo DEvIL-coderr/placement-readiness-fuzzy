@@ -24,6 +24,7 @@ Probably off-topic despite matching (verify): Sunil et al. "Adaptive Fuzzy Campu
 Off-topic: Zeng & Wang (entrepreneurship teaching), Kozlov et al. (research topics), Chen (employment planning system, vocational), Chen (foreign-language evaluation).
 
 ## Not done
-- Scopus: redirected to Elsevier sign-in (not logged in).
+- Scopus (2026-11-07): not searchable. The built-in browser only reached the "Scopus Preview" page ("Check access"); Advanced search redirected to the Elsevier sign-in. The free account gives no document search. Needs institutional access (Brainware library) or the user exporting results from their own session.
+- OpenAlex API: blocked by the session's network allowlist.
 - ACM Digital Library: blocked by a Cloudflare bot check.
 - Duplicate removal across databases, abstract screening, inclusion/exclusion counts (PRISMA) pending.
