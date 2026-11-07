@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth.jsx';
 import Admin from './pages/Admin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Demo from './pages/Demo.jsx';
+import Interview from './pages/Interview.jsx';
 import Log from './pages/Log.jsx';
 import Practice from './pages/Practice.jsx';
 import Questions from './pages/Questions.jsx';
@@ -11,6 +12,7 @@ import Questions from './pages/Questions.jsx';
 const NAV = [
   ['/', 'Dashboard'],
   ['/practice', 'Practice'],
+  ['/interview', 'Interview practice'],
   ['/questions', 'Top questions'],
   ['/log', 'Log & profile'],
   ['/demo', 'Demo'],
@@ -30,6 +32,7 @@ function Shell() {
   let page;
   switch (path) {
     case '/practice': page = <Practice />; break;
+    case '/interview': page = <Interview />; break;
     case '/questions': page = <Questions />; break;
     case '/log': page = <Log />; break;
     case '/demo': page = <Demo />; break;
