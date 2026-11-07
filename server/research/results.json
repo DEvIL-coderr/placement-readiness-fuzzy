@@ -1,0 +1,433 @@
+{
+  "setup": {
+    "seed": 42,
+    "studentsPerArchetype": 100,
+    "archetypes": [
+      "steady",
+      "accelerating",
+      "surge",
+      "hopper",
+      "unbalanced",
+      "stagnant",
+      "declining"
+    ],
+    "horizonWeeks": 4,
+    "readyThreshold": 60,
+    "note": "SIMULATED data - validates the protocol, not real-world accuracy."
+  },
+  "forecast_week8": {
+    "k": 8,
+    "task": "forecast",
+    "n": 700,
+    "prevalence": 0.37,
+    "rows": [
+      {
+        "model": "B0 Static weighted",
+        "rawBias": -7.451836491708157,
+        "MAE": 10.8991043386386,
+        "RMSE": 12.945529903528957,
+        "Spearman": 0.5875754965097596,
+        "F1": 0.5546666666666665,
+        "dMAE_vs_B0": {
+          "mean": 0,
+          "lo": 0,
+          "hi": 0
+        }
+      },
+      {
+        "model": "B1 Static fuzzy (prototype)",
+        "rawBias": -20.958225905327808,
+        "MAE": 13.00386166219094,
+        "RMSE": 14.659689530529562,
+        "Spearman": 0.38818025317696614,
+        "F1": 0.2754098360655738,
+        "dMAE_vs_B0": {
+          "mean": 2.1047573235523442,
+          "lo": 1.6707525461074562,
+          "hi": 2.542349487852397
+        }
+      },
+      {
+        "model": "A  Skill-state only",
+        "rawBias": -11.563281171951353,
+        "MAE": 11.603360680299014,
+        "RMSE": 13.32788463261592,
+        "Spearman": 0.5766667017688447,
+        "F1": 0.4692737430167598,
+        "dMAE_vs_B0": {
+          "mean": 0.7042563416604243,
+          "lo": 0.39747067020168825,
+          "hi": 1.0250533753278899
+        }
+      },
+      {
+        "model": "B  + trajectory quality",
+        "rawBias": -12.106852600522785,
+        "MAE": 11.161183412270349,
+        "RMSE": 12.976870683605805,
+        "Spearman": 0.6007391439829409,
+        "F1": 0.4835164835164835,
+        "dMAE_vs_B0": {
+          "mean": 0.26207907363174066,
+          "lo": -0.08479144528165652,
+          "hi": 0.6034975185015036
+        }
+      },
+      {
+        "model": "C  + forecast only",
+        "rawBias": -10.581924029094225,
+        "MAE": 11.38848030920336,
+        "RMSE": 13.235844815931955,
+        "Spearman": 0.585938392609386,
+        "F1": 0.4972677595628415,
+        "dMAE_vs_B0": {
+          "mean": 0.4893759705647577,
+          "lo": 0.15244790956566115,
+          "hi": 0.8444424921560423
+        }
+      },
+      {
+        "model": "D  Full (proposed)",
+        "rawBias": -10.960238314808521,
+        "MAE": 11.160207401129393,
+        "RMSE": 13.068293585991682,
+        "Spearman": 0.596161673824115,
+        "F1": 0.5121293800539083,
+        "dMAE_vs_B0": {
+          "mean": 0.26110306249079374,
+          "lo": -0.10351591427787095,
+          "hi": 0.6213084017135043
+        }
+      }
+    ],
+    "perArch": {
+      "steady": {
+        "B0": 9.101419632528154,
+        "Full": 10.947767421176584
+      },
+      "accelerating": {
+        "B0": 11.617533209743618,
+        "Full": 10.696185159024175
+      },
+      "surge": {
+        "B0": 15.794040085710835,
+        "Full": 15.124209077054834
+      },
+      "hopper": {
+        "B0": 6.9155335619826825,
+        "Full": 8.737469829146406
+      },
+      "unbalanced": {
+        "B0": 2.5818259229762286,
+        "Full": 4.4692122842507045
+      },
+      "stagnant": {
+        "B0": 14.883286126267858,
+        "Full": 14.076119245311864
+      },
+      "declining": {
+        "B0": 15.400091831260816,
+        "Full": 14.070488791941166
+      }
+    }
+  },
+  "forecast_week4": {
+    "k": 4,
+    "task": "forecast",
+    "n": 700,
+    "prevalence": 0.15142857142857144,
+    "rows": [
+      {
+        "model": "B0 Static weighted",
+        "rawBias": -6.007743254642705,
+        "MAE": 9.137452150235923,
+        "RMSE": 10.509305667315388,
+        "Spearman": 0.32368803085020875,
+        "F1": 0,
+        "dMAE_vs_B0": {
+          "mean": 0,
+          "lo": 0,
+          "hi": 0
+        }
+      },
+      {
+        "model": "B1 Static fuzzy (prototype)",
+        "rawBias": -20.00462761217152,
+        "MAE": 9.54033001907142,
+        "RMSE": 11.164543888326863,
+        "Spearman": -0.008655424079290595,
+        "F1": 0,
+        "dMAE_vs_B0": {
+          "mean": 0.4028778688355066,
+          "lo": 0.13477130703423987,
+          "hi": 0.6433036162371171
+        }
+      },
+      {
+        "model": "A  Skill-state only",
+        "rawBias": -11.001878223925488,
+        "MAE": 9.165500832579342,
+        "RMSE": 10.58145988345015,
+        "Spearman": 0.3012610580679669,
+        "F1": 0.018691588785046728,
+        "dMAE_vs_B0": {
+          "mean": 0.028048682343418046,
+          "lo": -0.15913600428514307,
+          "hi": 0.21449496770376347
+        }
+      },
+      {
+        "model": "B  + trajectory quality",
+        "rawBias": -12.128163938211266,
+        "MAE": 9.119136626006615,
+        "RMSE": 10.482313938852926,
+        "Spearman": 0.33681212654555154,
+        "F1": 0.018691588785046728,
+        "dMAE_vs_B0": {
+          "mean": -0.018315524229302858,
+          "lo": -0.2367095564556066,
+          "hi": 0.19790219242349505
+        }
+      },
+      {
+        "model": "C  + forecast only",
+        "rawBias": -11.708749652496898,
+        "MAE": 9.263964574048476,
+        "RMSE": 10.660864743938058,
+        "Spearman": 0.2990367061731767,
+        "F1": 0,
+        "dMAE_vs_B0": {
+          "mean": 0.12651242381255964,
+          "lo": -0.07705914674222403,
+          "hi": 0.32125094206796134
+        }
+      },
+      {
+        "model": "D  Full (proposed)",
+        "rawBias": -12.38713536678263,
+        "MAE": 9.241864265568672,
+        "RMSE": 10.618868016856384,
+        "Spearman": 0.31396685887590003,
+        "F1": 0.018691588785046728,
+        "dMAE_vs_B0": {
+          "mean": 0.1044121153327603,
+          "lo": -0.1063529024911029,
+          "hi": 0.31627541115864455
+        }
+      }
+    ],
+    "perArch": {
+      "steady": {
+        "B0": 14.464065482132382,
+        "Full": 14.829679136011743
+      },
+      "accelerating": {
+        "B0": 5.889480606887344,
+        "Full": 5.547959346994425
+      },
+      "surge": {
+        "B0": 6.224701580206126,
+        "Full": 6.895214286652749
+      },
+      "hopper": {
+        "B0": 6.965060946657652,
+        "Full": 7.61373484584976
+      },
+      "unbalanced": {
+        "B0": 8.181548185401052,
+        "Full": 8.161938619535391
+      },
+      "stagnant": {
+        "B0": 13.317304961574546,
+        "Full": 12.951974714375105
+      },
+      "declining": {
+        "B0": 8.920003288792307,
+        "Full": 8.692548909561548
+      }
+    }
+  },
+  "current_week8": {
+    "k": 8,
+    "task": "current",
+    "n": 700,
+    "prevalence": 0.15142857142857144,
+    "rows": [
+      {
+        "model": "B0 Static weighted",
+        "rawBias": -4.383504972253718,
+        "MAE": 5.972445689046821,
+        "RMSE": 7.396550988039323,
+        "Spearman": 0.7158870003524789,
+        "F1": 0.6303030303030303,
+        "dMAE_vs_B0": {
+          "mean": 0,
+          "lo": 0,
+          "hi": 0
+        }
+      },
+      {
+        "model": "B1 Static fuzzy (prototype)",
+        "rawBias": -17.88989438587337,
+        "MAE": 7.9906301514731135,
+        "RMSE": 9.553324265112726,
+        "Spearman": 0.4771718420063599,
+        "F1": 0.21487603305785125,
+        "dMAE_vs_B0": {
+          "mean": 2.0181844624262935,
+          "lo": 1.6413326796905587,
+          "hi": 2.393031009404423
+        }
+      },
+      {
+        "model": "A  Skill-state only",
+        "rawBias": -8.494949652496913,
+        "MAE": 6.600236696387249,
+        "RMSE": 7.988510837643963,
+        "Spearman": 0.6862454262132958,
+        "F1": 0.4848484848484849,
+        "dMAE_vs_B0": {
+          "mean": 0.6277910073404234,
+          "lo": 0.3609738397189914,
+          "hi": 0.9095808904602122
+        }
+      },
+      {
+        "model": "B  + trajectory quality",
+        "rawBias": -9.038521081068346,
+        "MAE": 6.417852644808138,
+        "RMSE": 7.76454326637698,
+        "Spearman": 0.7070330806916674,
+        "F1": 0.5088757396449703,
+        "dMAE_vs_B0": {
+          "mean": 0.44540695576130196,
+          "lo": 0.15779815510862652,
+          "hi": 0.7282695831185052
+        }
+      },
+      {
+        "model": "C  + forecast only",
+        "rawBias": -7.5135925096397855,
+        "MAE": 6.573087972746823,
+        "RMSE": 8.029944344008818,
+        "Spearman": 0.6906831092333717,
+        "F1": 0.4054054054054054,
+        "dMAE_vs_B0": {
+          "mean": 0.6006422836999826,
+          "lo": 0.31365298643626754,
+          "hi": 0.8969401989626459
+        }
+      },
+      {
+        "model": "D  Full (proposed)",
+        "rawBias": -7.891906795354082,
+        "MAE": 6.463223112044243,
+        "RMSE": 7.922679480822379,
+        "Spearman": 0.6985260414515914,
+        "F1": 0.4078947368421053,
+        "dMAE_vs_B0": {
+          "mean": 0.49077742299741495,
+          "lo": 0.19681552961212317,
+          "hi": 0.8021151963487018
+        }
+      }
+    ],
+    "perArch": {
+      "steady": {
+        "B0": 6.409188284806297,
+        "Full": 8.495416079373591
+      },
+      "accelerating": {
+        "B0": 5.215731817775822,
+        "Full": 5.076492182948648
+      },
+      "surge": {
+        "B0": 6.800178080953279,
+        "Full": 6.708551962375865
+      },
+      "hopper": {
+        "B0": 4.445565751682656,
+        "Full": 5.287093199747392
+      },
+      "unbalanced": {
+        "B0": 2.5540694441558243,
+        "Full": 4.167374914837545
+      },
+      "stagnant": {
+        "B0": 8.793013215237862,
+        "Full": 8.84856411873089
+      },
+      "declining": {
+        "B0": 7.589373228716061,
+        "Full": 6.659069326295772
+      }
+    }
+  },
+  "patternRecovery": {
+    "steady": {
+      "expectedPattern": "steady_growth",
+      "detectedAtLeast0_4": 0.82,
+      "meanDegree": 0.7805200000000002,
+      "dominantIsExpected": 0.83
+    },
+    "accelerating": {
+      "expectedPattern": "steady_growth",
+      "detectedAtLeast0_4": 0.46,
+      "meanDegree": 0.3843699999999999,
+      "dominantIsExpected": 0.5
+    },
+    "surge": {
+      "expectedPattern": "last_minute_surge",
+      "detectedAtLeast0_4": 1,
+      "meanDegree": 0.9637199999999999,
+      "dominantIsExpected": 0.95
+    },
+    "hopper": {
+      "expectedPattern": "skill_hopping",
+      "detectedAtLeast0_4": 0.51,
+      "meanDegree": 0.425,
+      "dominantIsExpected": 0.39
+    },
+    "unbalanced": {
+      "expectedPattern": "unbalanced_readiness",
+      "detectedAtLeast0_4": 1,
+      "meanDegree": 0.99517,
+      "dominantIsExpected": 0.37
+    },
+    "stagnant": {
+      "expectedPattern": "stagnation_decline",
+      "detectedAtLeast0_4": 0.84,
+      "meanDegree": 0.70969,
+      "dominantIsExpected": 0.15
+    },
+    "declining": {
+      "expectedPattern": "stagnation_decline",
+      "detectedAtLeast0_4": 0.83,
+      "meanDegree": 0.67257,
+      "dominantIsExpected": 0.81
+    }
+  },
+  "sensitivity": [
+    {
+      "sigma": 2,
+      "fuzzyMeanAbsChange": 0.8704093222065518,
+      "fuzzyRankCorr": 0.9947180631743784,
+      "staticMeanAbsChange": 0.7661788759318582,
+      "staticRankCorr": 0.9946264466185154
+    },
+    {
+      "sigma": 5,
+      "fuzzyMeanAbsChange": 1.996142659215408,
+      "fuzzyRankCorr": 0.9755921711889693,
+      "staticMeanAbsChange": 1.8463140329951908,
+      "staticRankCorr": 0.9701111481306244
+    },
+    {
+      "sigma": 10,
+      "fuzzyMeanAbsChange": 3.9402274789050753,
+      "fuzzyRankCorr": 0.9111081159633027,
+      "staticMeanAbsChange": 3.6078289502924656,
+      "staticRankCorr": 0.8958581608263444
+    }
+  ]
+}
