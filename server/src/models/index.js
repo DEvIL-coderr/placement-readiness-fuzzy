@@ -44,6 +44,8 @@ const questionSchema = new Schema(
     companies: { type: [String], default: [] },
     /** 0-100: how often this topic/question appears in placement tests (admin-curated). */
     frequency: { type: Number, min: 0, max: 100, default: 50, index: true },
+    /** where `frequency` comes from: shown to students so editorial estimates are not mistaken for evidence */
+    rankSource: { type: String, enum: ['editorial', 'expert', 'placement_records'], default: 'editorial' },
     tags: { type: [String], default: [] },
     active: { type: Boolean, default: true },
     fingerprint: { type: String, required: true },
@@ -93,7 +95,9 @@ const snapshotSchema = new Schema(
     day: { type: String, required: true },
     score: Number,
     projected: Number,
-    confidence: Number,
+    evidenceSufficiency: Number,
+    engineVersion: String,
+    configHash: String,
     skillState: Number,
     trajectoryQuality: Number,
     momentum: Number,

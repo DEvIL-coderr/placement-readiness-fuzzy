@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { SUBJECTS } from '../engine/config.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { escapeRegex, validate, wrap } from '../middleware/util.js';
-import { Question } from '../models/index.js';
+import { Attempt, Question } from '../models/index.js';
+import { ROLE_PROFILES } from '../engine/config.js';
+import { analyzeStudent } from '../services/analysis.js';
+import { questionsFromCsv } from '../services/csv.js';
 
 const router = Router();
 const slugs = SUBJECTS.map((s) => s.slug);
@@ -20,6 +23,7 @@ const questionBody = z.object({
   topic: z.string().trim().max(100).optional(),
   companies: z.array(z.string().trim().max(60)).max(20).optional(),
   frequency: z.number().min(0).max(100).default(50),
+  rankSource: z.enum(['editorial', 'expert', 'placement_records']).default('editorial'),
   tags: z.array(z.string().trim().max(40)).max(20).optional(),
   active: z.boolean().optional(),
 }).superRefine((q, ctx) => {
@@ -67,6 +71,39 @@ router.get('/top', requireAuth, validate(z.object({ subject: z.enum(slugs).optio
   res.json({ items });
 }));
 
+/**
+ * Personalised ranking for the signed-in student:
+ * frequency x (weak-area boost) x role relevance, down-weighted for questions already answered correctly.
+ */
+router.get('/recommended', requireAuth, validate(z.object({ limit: z.coerce.number().int().min(1).max(30).default(10) }), 'query'), wrap(async (req, res) => {
+  const [analysis, attempts, bank] = await Promise.all([
+    analyzeStudent(req.user, { persist: false }),
+    Attempt.find({ student: req.user._id }).select('question correct').lean(),
+    Question.find({ active: true }).select('-fingerprint').lean(),
+  ]);
+  const mastery = analysis.empty ? {} : Object.fromEntries(analysis.subjects.map((s) => [s.slug, s.mastery]));
+  const roleW = (ROLE_PROFILES[req.user.targetRole] ?? ROLE_PROFILES.general).weights;
+  const seen = new Map();
+  for (const a of attempts) {
+    const cur = seen.get(String(a.question)) ?? { right: 0, wrong: 0 };
+    if (a.correct) cur.right += 1; else cur.wrong += 1;
+    seen.set(String(a.question), cur);
+  }
+  const ranked = bank.map((q) => {
+    const weakness = 1 - (mastery[q.subject] ?? 40) / 100;
+    const s = seen.get(String(q._id));
+    const mastered = s && s.right > 0 && s.wrong === 0;
+    const score = (q.frequency / 100) * (0.4 + 0.6 * weakness) * (roleW[q.subject] ?? 0.7) * (mastered ? 0.3 : s?.wrong ? 1.2 : 1);
+    const why = [`frequency ${q.frequency} (${q.rankSource ?? 'editorial'})`];
+    if (weakness > 0.55) why.push('weak subject for you');
+    if ((roleW[q.subject] ?? 0) >= 0.9) why.push('important for your target role');
+    if (s?.wrong) why.push('you missed it before');
+    if (mastered) why.push('already answered correctly');
+    return { ...q, score: +score.toFixed(3), why };
+  }).sort((a, b) => b.score - a.score).slice(0, req.query.limit);
+  res.json({ items: ranked });
+}));
+
 router.get('/topics', requireAuth, wrap(async (req, res) => {
   const topics = await Question.aggregate([{ $match: { active: true, topic: { $ne: '' } } }, { $group: { _id: { s: '$subject', t: '$topic' }, n: { $sum: 1 } } }, { $sort: { '_id.s': 1, '_id.t': 1 } }]);
   res.json({ topics: topics.map((t) => ({ subject: t._id.s, topic: t._id.t, count: t.n })) });
@@ -77,19 +114,32 @@ router.post('/', requireAuth, requireAdmin, validate(questionBody), wrap(async (
   res.status(201).json({ question: q });
 }));
 
-router.post('/bulk', requireAuth, requireAdmin, validate(z.object({ questions: z.array(z.unknown()).min(1).max(500) })), wrap(async (req, res) => {
+async function importQuestions(list, userId) {
   const result = { inserted: 0, duplicates: 0, invalid: [] };
-  for (const [i, raw] of req.body.questions.entries()) {
+  for (const [i, raw] of list.entries()) {
     const parsed = questionBody.safeParse(raw);
     if (!parsed.success) { result.invalid.push({ index: i, errors: parsed.error.flatten().fieldErrors }); continue; }
     try {
-      await Question.create({ ...parsed.data, createdBy: req.user._id });
+      await Question.create({ ...parsed.data, createdBy: userId });
       result.inserted += 1;
     } catch (e) {
       if (e?.code === 11000) result.duplicates += 1;
       else result.invalid.push({ index: i, errors: String(e.message) });
     }
   }
+  return result;
+}
+
+router.post('/bulk', requireAuth, requireAdmin, validate(z.object({ questions: z.array(z.unknown()).min(1).max(500) })), wrap(async (req, res) => {
+  const result = await importQuestions(req.body.questions, req.user._id);
+  res.status(result.inserted ? 201 : 200).json(result);
+}));
+
+router.post('/import-csv', requireAuth, requireAdmin, validate(z.object({ csv: z.string().min(10).max(1_000_000) })), wrap(async (req, res) => {
+  const list = questionsFromCsv(req.body.csv);
+  if (!list.length) return res.status(400).json({ error: 'CSV has no data rows' });
+  if (list.length > 500) return res.status(400).json({ error: 'At most 500 rows per import' });
+  const result = await importQuestions(list, req.user._id);
   res.status(result.inserted ? 201 : 200).json(result);
 }));
 

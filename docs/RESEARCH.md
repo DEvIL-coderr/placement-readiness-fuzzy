@@ -24,22 +24,30 @@ Titles seen in search but **not read** (verify before citing): fuzzy expert-base
 ## 3. Gap statement (proposed)
 Existing fuzzy placement systems are **static, small-input and unvalidated**; ML placement models are **opaque, outcome-only**; temporal student models target **online courses**, not placement preparation; fuzzy linkography targets **creative sessions**. Missing: an **interpretable, uncertainty-aware fuzzy framework that models the weekly preparation trajectory (not just the current score), diagnoses preparation patterns, forecasts readiness at the placement date and issues role-aware prioritised actions**, evaluated against static baselines with ablation and sensitivity analysis.
 
-## 4. Contributions implemented
-1. **Hierarchical fuzzy pipeline** (9+9+27+27+9 rules): Technical strength, Non-technical strength → Skill state; Trajectory quality; Readiness. Rule bases are generated from explicit weights/thresholds and a "technical gate" (weak technical ⇒ capped), so they are auditable and recalibratable.
-2. **Evidence-aware mastery**: difficulty-weighted, chance-corrected (4-option MCQ), exponentially forgetting (half-life 3 wk), shrunk to a prior. Inputs are *measured* from a question bank, not self-reported.
-3. **Fuzzy preparation linkograph**: events = (week, subject) practice moves; link = min(topic relatedness, temporal proximity); orphan ratio detects topic hopping. (Adapted from Smith et al. 2025 — cite it.)
-4. **Soft pattern memberships** (steady growth, last-minute surge, skill hopping, unbalanced, stagnation) from momentum (Theil–Sen), consistency, surge, balance, orphan ratio — multi-label degrees, not hard classes.
-5. **Forecast at the placement horizon** (damped momentum extrapolation) and an **evidence-adjusted uncertainty band** (inputs shifted by ±δ, δ shrinking with evidence; IT2-inspired, not a full IT2 system).
-6. **Role-aware recommendation**: priority = role weight × (0.6·gap + 0.2·decline + 0.2·neglect) with reasons.
-7. **Calibration loop**: faculty ratings → linear calibration → CSV export for real validation.
+## 4. Contributions implemented (engine v2.0.0)
+Working title: **An Evidence-Calibrated, Role-Aware Temporal Fuzzy Framework for Placement-Readiness Diagnosis and Forecasting.**
+1. **Hierarchical fuzzy pipeline** (9+9+27+27+9 rules, Mamdani, generated from explicit weights/thresholds plus a "technical gate"), so rule bases are auditable. Every result stores a config fingerprint and engine version for reproducibility.
+2. **Evidence-aware mastery**: difficulty-weighted, chance-corrected, exponentially forgetting (half-life 3 wk), shrunk to a prior; stale self-reported practical evidence decays (half-life 8 wk). Inputs are measured from a question bank, not self-reported.
+3. **Role-specific readiness**: the same evidence is pooled with each role's own domain weights (normalised per domain), giving a readiness score per role, not only one global score.
+4. **Trajectory descriptors**: Theil-Sen momentum, practice regularity, surge, coverage-aware balance, volatility, acceleration, plus practice entropy, topic diversity and switch rate.
+5. **Soft pattern memberships** (steady growth, last-minute surge, skill hopping, unbalanced, stagnation): multi-label degrees, not hard classes.
+6. **Forecast at the placement horizon** (damped momentum) with a **sensitivity band** (inputs shifted by +/- delta, delta shrinking with evidence). This is a sensitivity analysis, **not a statistical confidence interval**; do not call it one in the paper.
+7. **Role-aware recommendation** with reasons, and a personalised question ranking (frequency x weak-area x role relevance); each question carries a `rankSource` (editorial / expert / placement_records) so editorial estimates are not mistaken for evidence.
+8. **Calibration loop**: faculty ratings -> linear calibration, versioned history, CSV export.
+9. **Fuzzy preparation linkograph** (adapted from Smith et al. 2025): kept as an *explanatory visual*, **not a headline contribution** (see section 6).
 
 ## 5. Research questions & hypotheses
-RQ1 Does trajectory information add value beyond current scores? RQ2 Are preparation patterns recoverable? RQ3 Do recommendations match faculty judgement? Pre-register: H1 Full model ≤ static baseline MAE and ≥ Spearman on real cohort; H2 pattern degrees agree with faculty-labelled patterns (Cohen's κ); H3 recommendation top-3 overlaps faculty top-3 (nDCG).
+RQ1 Does trajectory information add value beyond current scores *and beyond a simple linear trend*? RQ2 Are preparation patterns recoverable? RQ3 Do recommendations match faculty judgement? Pre-register: H1 Full model beats the static+linear-trend baseline (L) on MAE/Spearman on a real cohort; H2 pattern degrees agree with faculty-labelled patterns (Cohen's kappa); H3 recommendation top-3 overlaps faculty top-3 (nDCG).
 
-## 6. Simulation results (SIMULATED — protocol check only)
-700 synthetic students (7 behaviours × 100), 2-fold cross-fitted linear calibration for every model, F1 at ≥60, paired bootstrap CI. Full tables: `docs/evaluation-output.md`.
-Forecast, 8 weeks observed: static weighted MAE 10.90 / ρ 0.588; prototype fuzzy 13.00 / 0.388; **FTRA full 11.16 / 0.596** (ΔMAE vs static +0.26, CI [−0.10, 0.62]).
-**Honest reading:** FTRA clearly beats the prototype fuzzy model, is statistically indistinguishable from a static weighted average on accuracy (the simulator's ground truth is that weighted sum, which favours the baseline), and adds what the baseline cannot: patterns (surge 100%, steady 82%, declining 83%, unbalanced 100% detected; hopper 51% and accelerating 46% weak), uncertainty, forecast and explanation. Position the paper on **interpretable diagnostics at no accuracy cost**, not "higher accuracy", unless real data shows otherwise.
+## 6. Simulation results (SIMULATED, protocol check only)
+700 synthetic students (7 behaviours x 100), 2-fold cross-fitted linear calibration for every model, paired bootstrap CIs. Tables: `docs/evaluation-output.md`.
+Forecast, 8 weeks observed, horizon 4 wk (calibrated MAE): static weighted **10.91**; prototype fuzzy 13.00; **static + linear trend 10.49**; skill-state only 11.56; full proposed 11.13 (vs static: +0.22, CI [-0.15, 0.58]).
+**Honest reading (v2):**
+- The proposed model clearly beats the prototype fuzzy model, but is **not better than the static weighted average, and is worse than static + linear trend** (dMAE -0.42, CI [-0.73, -0.10] in favour of L). The damped-momentum forecast heuristic is therefore **not validated**; it must be improved or dropped before claiming a forecasting contribution.
+- The simulator's ground truth is a weighted sum, which favours static baselines. Real data may differ, but cannot be assumed to.
+- Hopping detection: simple **practice entropy (AUC 0.99) and topic diversity (AUC 1.00)** outperform the linkograph orphan ratio (AUC 0.90) and switch frequency (0.77). The linkograph is therefore not the main contribution.
+- Pattern recovery: steady 85%, accelerating 47%, surge 100%, hopper 51%, unbalanced 100%, stagnant 83%, declining 82%. Hopper and accelerating are weak.
+- What remains defensible: interpretable diagnostics, role-specific scores, sensitivity analysis and auditability at roughly baseline accuracy. Position the paper on that, and on real-data validation, not on "higher accuracy".
 
 ## 7. Known limitations (report them)
 - No real cohort yet; all accuracy claims pending. Rule weights/thresholds, prior mean (40), half-life and damping are expert defaults.

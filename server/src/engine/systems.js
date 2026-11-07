@@ -11,6 +11,7 @@
  * out by hand, so the 9 + 9 + 27 + 27 + 9 rules stay consistent and can be
  * re-calibrated against faculty data without touching code.
  */
+import crypto from 'node:crypto';
 import { FuzzyVariable, MamdaniSystem, trapmf, trimf } from './fuzzy.js';
 
 /** Partition of unity on [0,100]: low + medium + high = 1 everywhere. */
@@ -166,3 +167,19 @@ export const SYSTEMS = { TS, NS, SS, TQ, READINESS };
 export const HOP_HIGH = trapmf(25, 50, 100, 100);
 export const SURGE_HIGH = trapmf(30, 60, 100, 100);
 export const BALANCE_LOW = trapmf(0, 0, 45, 70);
+
+/**
+ * Fingerprint of the exact rule bases and membership functions (sampled), stored with every result
+ * so any score can be reproduced/audited against the configuration that produced it.
+ */
+export function configFingerprint(extra = {}) {
+  const payload = {};
+  for (const [name, sys] of Object.entries(SYSTEMS)) {
+    const samples = [];
+    for (let x = sys.output.min; x <= sys.output.max; x += (sys.output.max - sys.output.min) / 20) {
+      samples.push(Object.values(sys.inputs).map((v) => v.fuzzify(Math.min(v.max, Math.max(v.min, x))))); // each input at x
+    }
+    payload[name] = { rules: sys.rules.map((r) => `${r.if.map((c) => c.join(':')).join(r.op === 'or' ? '|' : '&')}>${r.then}`), samples };
+  }
+  return crypto.createHash('sha1').update(JSON.stringify({ payload, extra })).digest('hex').slice(0, 12);
+}

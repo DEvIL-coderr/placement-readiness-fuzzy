@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { fitLinear } from '../engine/calibration.js';
+import { ENGINE_VERSION } from '../engine/config.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { validate, wrap } from '../middleware/util.js';
 import { Attempt, ExpertRating, Question, Setting, Snapshot, User } from '../models/index.js';
@@ -68,8 +69,15 @@ router.post('/calibration/fit', wrap(async (req, res) => {
   const pairs = await ratingPairs();
   const cal = fitLinear(pairs);
   if (!cal) return res.status(400).json({ error: 'Need at least 5 expert ratings with matching snapshots', pairs: pairs.length });
-  await Setting.findOneAndUpdate({ key: 'calibration' }, { value: cal }, { upsert: true });
-  res.json({ calibration: cal });
+  const stamped = { ...cal, fittedAt: new Date().toISOString(), engineVersion: ENGINE_VERSION };
+  const hist = (await Setting.findOne({ key: 'calibrationHistory' }).lean())?.value ?? [];
+  await Setting.findOneAndUpdate({ key: 'calibration' }, { value: stamped }, { upsert: true });
+  await Setting.findOneAndUpdate({ key: 'calibrationHistory' }, { value: [...hist, stamped].slice(-50) }, { upsert: true });
+  res.json({ calibration: stamped, versions: hist.length + 1 });
+}));
+
+router.get('/calibration/history', wrap(async (req, res) => {
+  res.json({ items: (await Setting.findOne({ key: 'calibrationHistory' }).lean())?.value ?? [] });
 }));
 
 router.delete('/calibration', wrap(async (req, res) => { await Setting.deleteOne({ key: 'calibration' }); res.json({ ok: true }); }));

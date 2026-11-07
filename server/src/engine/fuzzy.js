@@ -44,7 +44,8 @@ export class FuzzyVariable {
   }
 
   fuzzify(x) {
-    const v = clamp(Number.isFinite(x) ? x : (this.min + this.max) / 2, this.min, this.max);
+    if (!Number.isFinite(x)) throw new TypeError(`Missing or non-finite input for fuzzy variable "${this.name}"`);
+    const v = clamp(x, this.min, this.max);
     const out = {};
     for (const label of this.labels) out[label] = this.sets[label](v);
     return out;

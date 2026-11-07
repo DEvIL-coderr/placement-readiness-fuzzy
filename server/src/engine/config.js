@@ -97,7 +97,10 @@ export const ENGINE_DEFAULTS = {
   momentumWindow: 6,
   minEventAttempts: 3, // attempts for a (week, subject) to count as a linkograph event
   orphanThreshold: 0.35,
+  practicalHalfLifeWeeks: 8, // staleness of project/mock evidence
   fullSeries: true,
 };
+
+export const ENGINE_VERSION = '2.0.0';
 
 export const DIFFICULTY_WEIGHT = { easy: 1, medium: 2, hard: 3 };

@@ -8,19 +8,22 @@ export default function Questions() {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState({});
   const [error, setError] = useState('');
+  const [personal, setPersonal] = useState(false);
 
   useEffect(() => { api('/subjects').then(setMeta).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [f]);
   useEffect(() => {
     const qs = new URLSearchParams({ ...Object.fromEntries(Object.entries(f).filter(([, v]) => v)), page, limit: 15 });
-    api(`/questions?${qs}`).then(setData).catch((e) => setError(e.message));
-  }, [f, page]);
+    if (personal) api('/questions/recommended?limit=15').then((r) => setData({ items: r.items, total: r.items.length, page: 1, pages: 1 })).catch((e) => setError(e.message));
+    else api(`/questions?${qs}`).then(setData).catch((e) => setError(e.message));
+  }, [f, page, personal]);
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <>
       <h1>Top questions</h1>
-      <p className="muted">Ranked by how often they appear in placement rounds (curated by your admin).</p>
+      <p className="muted">{personal ? 'Personalised: frequency × your weak areas × target-role relevance.' : 'Ranked by a frequency score set by your admin; its source is shown on each question.'}</p>
+      <p><label><input type="checkbox" checked={personal} onChange={(e) => setPersonal(e.target.checked)} /> Recommended for me</label></p>
       <div className="toolbar">
         <label>Subject<select value={f.subject} onChange={set('subject')}><option value="">All</option>{meta?.subjects.map((s) => <option key={s.slug} value={s.slug}>{s.name}</option>)}</select></label>
         <label>Difficulty<select value={f.difficulty} onChange={set('difficulty')}><option value="">Any</option><option>easy</option><option>medium</option><option>hard</option></select></label>
@@ -34,7 +37,8 @@ export default function Questions() {
           <p><strong>{q.text}</strong></p>
           <p className="meta">
             <span className="chip">{q.subject}</span> <span className="chip">{q.difficulty}</span> {q.topic && <span className="chip">{q.topic}</span>}
-            <span className="freq" title="Frequency score">★ {q.frequency}</span>
+            <span className="freq" title={`Frequency score (${q.rankSource ?? 'editorial'})`}>★ {q.frequency} · {(q.rankSource ?? 'editorial').replace('_', ' ')}</span>
+            {q.why && <span className="muted small"> — {q.why.join('; ')}</span>}
           </p>
           <button onClick={() => setOpen({ ...open, [q._id]: !open[q._id] })}>{open[q._id] ? 'Hide answer' : 'Show answer'}</button>
           {open[q._id] && (

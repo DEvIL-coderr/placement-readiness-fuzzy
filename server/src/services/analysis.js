@@ -19,7 +19,8 @@ export function applyCal(result, cal) {
   if (!cal || result.empty) return result;
   const r = result.readiness;
   const c = (x) => +applyCalibration(x, cal).toFixed(2);
-  result.readiness = { ...r, raw: { score: r.score, projected: r.projected }, score: c(r.score), low: c(r.low), high: c(r.high), projected: c(r.projected), projectedLow: c(r.projectedLow), projectedHigh: c(r.projectedHigh) };
+  result.readiness = { ...r, raw: { score: r.score, projected: r.projected }, score: c(r.score), sensitivityLow: c(r.sensitivityLow), sensitivityHigh: c(r.sensitivityHigh), projected: c(r.projected), projectedSensitivityLow: c(r.projectedSensitivityLow), projectedSensitivityHigh: c(r.projectedSensitivityHigh) };
+  result.roles = Object.fromEntries(Object.entries(result.roles ?? {}).map(([k, v]) => [k, { ...v, score: c(v.score), projected: c(v.projected) }]));
   result.trajectory.series = result.trajectory.series.map((p) => ({ ...p, readiness: c(p.readiness), projected: c(p.projected) }));
   result.meta.calibrated = true;
   return result;
@@ -41,7 +42,9 @@ export async function analyzeStudent(user, { persist = true, now = new Date() } 
       {
         score: result.readiness.score, // raw (uncalibrated) score is what calibration is fitted on
         projected: result.readiness.projected,
-        confidence: result.meta.confidence,
+        evidenceSufficiency: result.meta.evidenceSufficiency,
+        engineVersion: result.meta.engineVersion,
+        configHash: result.meta.configHash,
         skillState: result.stages.skillState,
         trajectoryQuality: result.stages.trajectoryQuality,
         momentum: d.momentum, consistency: d.consistency, balance: d.balance, surge: d.surge, hopping: d.hopping,

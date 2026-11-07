@@ -18,7 +18,7 @@ npm run evaluate  # simulation study -> server/research/results.json
 Default admin: `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` (change them).
 
 ## Features
-- Students: quizzes per subject (11 subjects), weekly project/mock log, dashboard (readiness + uncertainty band, forecast at placement date, trajectory chart, pattern, ranked recommendations, linkograph, rule explanation), "Top questions" ranked by frequency.
+- Students: quizzes per subject (11 subjects), weekly project/mock log, dashboard (readiness + sensitivity band (not a confidence interval), forecast at placement date, trajectory chart, pattern, ranked recommendations, per-role readiness, linkograph (explanatory), rule explanation), "Top questions" ranked by frequency with its source shown, plus a personalised "recommended for me" ranking.
 - Admin: add/edit/delete questions (MCQ + interview Q&A), JSON bulk import with automatic duplicate detection, faculty ratings, calibration, CSV export for the paper.
 - Demo page: synthetic students of 7 behaviours scored by the same engine.
 
@@ -32,3 +32,11 @@ Default admin: `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env` (change them).
 - Readiness scores are **uncalibrated** until faculty ratings are collected (Admin → Students, then Research data → Fit calibration).
 - Evaluation numbers in `docs/RESEARCH.md` come from **simulated** students and prove nothing about real accuracy.
 - Seed question `frequency` values are editorial estimates; tune them with your college's real drive data.
+
+
+## Branch notes: `improvements` (engine v2.0.0)
+- Role-specific readiness, stale-evidence decay, input validation (missing data throws), config fingerprint, new trajectory descriptors, sensitivity-band terminology.
+- Question bank: `rankSource`, CSV import (`POST /api/questions/import-csv`, admin UI), personalised `GET /api/questions/recommended`.
+- Calibration history (`GET /api/admin/calibration/history`).
+- Evaluation now includes a static+linear-trend baseline, which beats the proposed forecast in simulation; see `docs/RESEARCH.md` section 6.
+- Not yet run against a live MongoDB; run `npm test` in `server/` (38 tests, engine only) and report any API errors.

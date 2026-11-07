@@ -106,9 +106,9 @@ test('analyze: empty input is handled', () => {
 test('analyze: outputs are bounded and uncertainty band contains the score', () => {
   const { series } = simulateStudent('steady', mulberry32(5));
   const r = analyze(series.slice(0, 8));
-  for (const v of [r.readiness.score, r.readiness.low, r.readiness.high, r.readiness.projected]) assert.ok(v >= 0 && v <= 100);
-  assert.ok(r.readiness.low <= r.readiness.score && r.readiness.score <= r.readiness.high);
-  assert.ok(r.readiness.projectedLow <= r.readiness.projected && r.readiness.projected <= r.readiness.projectedHigh);
+  for (const v of [r.readiness.score, r.readiness.sensitivityLow, r.readiness.sensitivityHigh, r.readiness.projected]) assert.ok(v >= 0 && v <= 100);
+  assert.ok(r.readiness.sensitivityLow <= r.readiness.score && r.readiness.score <= r.readiness.sensitivityHigh);
+  assert.ok(r.readiness.projectedSensitivityLow <= r.readiness.projected && r.readiness.projected <= r.readiness.projectedSensitivityHigh);
 });
 
 test('analyze: is deterministic', () => {
@@ -116,12 +116,12 @@ test('analyze: is deterministic', () => {
   assert.deepEqual(analyze(series.slice(0, 8)), analyze(series.slice(0, 8)));
 });
 
-test('uncertainty band narrows as evidence accumulates', () => {
+test('sensitivity band narrows as evidence accumulates', () => {
   const { series } = simulateStudent('steady', mulberry32(11));
   const early = analyze(series.slice(0, 2));
   const late = analyze(series.slice(0, 10));
-  assert.ok(early.meta.confidence < late.meta.confidence);
-  assert.ok(early.readiness.high - early.readiness.low >= late.readiness.high - late.readiness.low);
+  assert.ok(early.meta.evidenceSufficiency < late.meta.evidenceSufficiency);
+  assert.ok(early.readiness.sensitivityHigh - early.readiness.sensitivityLow >= late.readiness.sensitivityHigh - late.readiness.sensitivityLow);
 });
 
 test('same totals, different trajectories: steady vs last-minute surge', () => {
@@ -194,4 +194,64 @@ test('READINESS system orders outcomes sensibly', () => {
   const mid = READINESS.infer({ skill_state: 50, trajectory: 50 }).crisp;
   const hi = READINESS.infer({ skill_state: 90, trajectory: 90 }).crisp;
   assert.ok(lo < mid && mid < hi);
+});
+
+// ---------- v2: role-specific readiness, staleness, validation ----------
+import { buildStates, validateSeries } from '../src/engine/analyze.js';
+import { SYSTEMS as SYS2, configFingerprint } from '../src/engine/systems.js';
+
+test('readiness is role-specific: strong DB/aptitude, weak DSA scores higher for data analyst than software developer', () => {
+  const weeks = Array.from({ length: 6 }, (_, w) => mkWeek(w, { dsa: 12, coding: 12, oop: 8, dbms: 14, os: 4, cn: 4, web: 4, quant: 14, logical: 14, verbal: 8, hr: 8 }, 0.5));
+  // make DSA/coding weak, DBMS/quant/logical strong
+  for (const wk of weeks) {
+    for (const s of ['dsa', 'coding']) wk.subjects[s].wcorrect = wk.subjects[s].wattempted * 0.3;
+    for (const s of ['dbms', 'quant', 'logical']) wk.subjects[s].wcorrect = wk.subjects[s].wattempted * 0.9;
+  }
+  const r = analyze(weeks, { targetRole: 'software_developer' });
+  assert.ok(r.roles.data_analyst.score > r.roles.software_developer.score, JSON.stringify(r.roles));
+  assert.equal(r.roles.software_developer.score, r.readiness.score);
+  assert.equal(Object.keys(r.roles).length, 5);
+});
+
+test('general role equals plain pooling (weights normalised)', () => {
+  const weeks = Array.from({ length: 4 }, (_, w) => mkWeek(w, spread(66), 0.6));
+  const a = buildStates(weeks, { ...ENGINE_DEFAULTS, roleWeights: undefined });
+  const b = buildStates(weeks, { ...ENGINE_DEFAULTS, roleWeights: Object.fromEntries(ALL.map((s) => [s, 0.7])) });
+  near(a[3].domains.core.mastery, b[3].domains.core.mastery);
+});
+
+test('stale project/mock evidence fades toward the prior', () => {
+  const mk = (n) => Array.from({ length: n }, (_, w) => ({ ...mkWeek(w, spread(66), 0.6), practical: w === 0 ? { projects: 95, mock: 95 } : null }));
+  const fresh = buildStates(mk(1), ENGINE_DEFAULTS)[0].domains.practical.mastery;
+  const stale = buildStates(mk(17), ENGINE_DEFAULTS)[16].domains.practical.mastery;
+  assert.ok(fresh > 90);
+  assert.ok(stale < 60 && stale > ENGINE_DEFAULTS.priorMean - 1, `${stale}`);
+});
+
+test('invalid records are rejected instead of silently distorting the engine', () => {
+  assert.throws(() => analyze([{ week: 0, date: 'x', subjects: { dsa: { attempted: 5, wattempted: 10, wcorrect: 12 } } }]), RangeError);
+  assert.throws(() => analyze([{ week: 0, date: 'x', subjects: { dsa: { attempted: NaN, wattempted: 1, wcorrect: 0 } } }]), RangeError);
+  assert.throws(() => validateSeries([{ week: 0, subjects: {}, practical: { projects: 140 } }]), RangeError);
+});
+
+test('missing/non-finite fuzzy inputs throw instead of being replaced by a midpoint', () => {
+  assert.throws(() => SYS2.TS.infer({ dsa: undefined, core: 50 }), TypeError);
+  assert.throws(() => SYS2.TS.infer({ dsa: NaN, core: 50 }), TypeError);
+});
+
+test('result carries engine version and a stable configuration fingerprint', () => {
+  const { series } = simulateStudent('steady', mulberry32(2));
+  const r = analyze(series.slice(0, 6), { byRole: false });
+  assert.equal(r.meta.engineVersion, '2.0.0');
+  assert.match(r.meta.configHash, /^[0-9a-f]{12}$/);
+  assert.equal(configFingerprint({ ...ENGINE_DEFAULTS }), r.meta.configHash);
+  assert.notEqual(configFingerprint({ ...ENGINE_DEFAULTS, damping: 0.9 }), r.meta.configHash);
+});
+
+test('separate trajectory descriptors are reported', () => {
+  const { series } = simulateStudent('steady', mulberry32(4));
+  const d = analyze(series.slice(0, 8), { byRole: false }).trajectory.descriptors;
+  for (const k of ['momentum', 'practiceRegularity', 'scoreVolatility', 'acceleration', 'switchRate', 'practiceEntropy', 'topicDiversity', 'balance', 'surge', 'hopping']) {
+    assert.ok(Number.isFinite(d[k]), k);
+  }
 });

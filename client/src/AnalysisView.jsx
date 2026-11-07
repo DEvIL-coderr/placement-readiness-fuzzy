@@ -33,16 +33,28 @@ export default function AnalysisView({ analysis }) {
     <div className="grid">
       <section className="card span-4">
         <h3>Readiness today</h3>
-        <Gauge score={r.score} low={r.low} high={r.high} label={r.label} />
+        <Gauge score={r.score} low={r.sensitivityLow} high={r.sensitivityHigh} label={r.label} />
         <p className="big-label">{r.label}</p>
-        <p className="muted small">Uncertainty band {Math.round(r.low)}–{Math.round(r.high)} · evidence confidence {Math.round(meta.confidence * 100)}%{meta.calibrated ? ' · calibrated' : ' · uncalibrated'}</p>
+        <p className="muted small">Sensitivity band {Math.round(r.sensitivityLow)}–{Math.round(r.sensitivityHigh)} (not a statistical interval) · evidence sufficiency {Math.round(meta.evidenceSufficiency * 100)}%{meta.calibrated ? ' · calibrated' : ' · uncalibrated'}</p>
         <div className="forecast">
           <span>Forecast in {meta.horizonWeeks} wk</span>
           <strong>{Math.round(r.projected)}</strong>
-          <span className="muted small">{r.projectedLabel} ({Math.round(r.projectedLow)}–{Math.round(r.projectedHigh)})</span>
+          <span className="muted small">{r.projectedLabel} ({Math.round(r.projectedSensitivityLow)}–{Math.round(r.projectedSensitivityHigh)})</span>
         </div>
         <p className="muted small">Target role: {meta.roleLabel} · {meta.weeks} week{meta.weeks === 1 ? '' : 's'} of data</p>
       </section>
+
+      {analysis.roles && (
+        <section className="card span-12">
+          <h3>Readiness by role</h3>
+          <p className="muted small">Same evidence, scored with each role's own domain weights.</p>
+          <ul className="opts">
+            {Object.entries(analysis.roles).sort((a, b) => b[1].score - a[1].score).map(([k, v]) => (
+              <li key={k}><strong>{v.label}</strong>: {Math.round(v.score)} → {Math.round(v.projected)} in {meta.horizonWeeks} wk{k === meta.targetRole ? ' (your target)' : ''}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card span-8">
         <h3>Weekly trajectory</h3>

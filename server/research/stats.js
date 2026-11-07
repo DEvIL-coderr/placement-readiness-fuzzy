@@ -60,3 +60,10 @@ export function bootstrapMaeDiff(predA, predB, truth, { iters = 2000, seed = 7 }
   diffs.sort((x, y) => x - y);
   return { mean: mean(d), lo: diffs[Math.floor(0.025 * iters)], hi: diffs[Math.floor(0.975 * iters)] };
 }
+
+/** AUC (Mann-Whitney): probability a random positive scores higher than a random negative. */
+export function auc(pos, neg) {
+  let wins = 0;
+  for (const p of pos) for (const n of neg) wins += p > n ? 1 : p === n ? 0.5 : 0;
+  return wins / (pos.length * neg.length);
+}

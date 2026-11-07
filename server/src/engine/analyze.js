@@ -15,18 +15,19 @@
  *   5. Evidence-adjusted uncertainty band, fuzzy pattern memberships, ranked recommendations
  */
 import {
-  DIFFICULTY_WEIGHT, // eslint-disable-line no-unused-vars
   DOMAIN_LABELS,
   ENGINE_DEFAULTS,
+  ENGINE_VERSION,
   QUESTION_DOMAINS,
   ROLE_PROFILES,
   SUBJECTS,
   relatedness,
 } from './config.js';
 import { clamp, trapmf } from './fuzzy.js';
-import { BALANCE_LOW, HOP_HIGH, LEVELS, MOMENTUM_SETS, SURGE_HIGH, SYSTEMS, rescale } from './systems.js';
+import { BALANCE_LOW, HOP_HIGH, LEVELS, MOMENTUM_SETS, SURGE_HIGH, SYSTEMS, configFingerprint, rescale } from './systems.js';
 
 const { TS, NS, SS, TQ, READINESS } = SYSTEMS;
+const CONFIG_HASH = configFingerprint({ ...ENGINE_DEFAULTS });
 
 // ---------- small numeric helpers ----------
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -59,11 +60,38 @@ export function masteryOf(wc, wa, o) {
   return (100 * (corrected + (o.priorMean / 100) * o.priorWeight)) / (wa + o.priorWeight);
 }
 
+/** Role weights normalised per domain (mean 1) so the neutral/general role equals plain pooling. */
+function normalisedRoleWeights(o) {
+  const rw = o.roleWeights ?? {};
+  const out = {};
+  for (const d of QUESTION_DOMAINS) {
+    const subs = SUBJECTS.filter((s) => s.domain === d);
+    const m = mean(subs.map((s) => rw[s.slug] ?? 1)) || 1;
+    for (const s of subs) out[s.slug] = (rw[s.slug] ?? 1) / m;
+  }
+  return out;
+}
+
+export function validateSeries(series) {
+  series.forEach((wk, i) => {
+    for (const [slug, v] of Object.entries(wk.subjects ?? {})) {
+      const ok = [v.attempted, v.wattempted, v.wcorrect].every((x) => Number.isFinite(x) && x >= 0) && v.wcorrect <= v.wattempted + 1e-9;
+      if (!ok) throw new RangeError(`Invalid weekly record (week ${i}, subject ${slug})`);
+    }
+    for (const k of ['projects', 'mock']) {
+      const x = wk.practical?.[k];
+      if (x !== undefined && x !== null && !(Number.isFinite(x) && x >= 0 && x <= 100)) throw new RangeError(`Invalid ${k} score in week ${i}`);
+    }
+  });
+}
+
 export function buildStates(series, o) {
   const lambda = Math.pow(0.5, 1 / o.halfLifeWeeks);
   const acc = Object.fromEntries(SUBJECTS.map((s) => [s.slug, { wa: 0, wc: 0 }]));
+  const rw = normalisedRoleWeights(o);
   let lastProjects = null;
   let lastMock = null;
+  let lastPracticalIdx = -1;
   return series.map((wk, idx) => {
     if (idx > 0) for (const a of Object.values(acc)) { a.wa *= lambda; a.wc *= lambda; }
     for (const [slug, v] of Object.entries(wk.subjects ?? {})) {
@@ -72,8 +100,8 @@ export function buildStates(series, o) {
       acc[slug].wc += v.wcorrect ?? 0;
     }
     if (wk.practical) {
-      if (Number.isFinite(wk.practical.projects)) lastProjects = wk.practical.projects;
-      if (Number.isFinite(wk.practical.mock)) lastMock = wk.practical.mock;
+      if (Number.isFinite(wk.practical.projects)) { lastProjects = wk.practical.projects; lastPracticalIdx = idx; }
+      if (Number.isFinite(wk.practical.mock)) { lastMock = wk.practical.mock; lastPracticalIdx = idx; }
     }
     const subjects = {};
     for (const s of SUBJECTS) {
@@ -84,11 +112,16 @@ export function buildStates(series, o) {
     for (const d of QUESTION_DOMAINS) {
       let wa = 0;
       let wc = 0;
-      for (const s of SUBJECTS) if (s.domain === d) { wa += acc[s.slug].wa; wc += acc[s.slug].wc; }
+      for (const s of SUBJECTS) if (s.domain === d) { wa += rw[s.slug] * acc[s.slug].wa; wc += rw[s.slug] * acc[s.slug].wc; }
       domains[d] = { mastery: masteryOf(wc, wa, o), evidence: wa };
     }
     const known = [lastProjects, lastMock].filter((v) => v !== null);
-    domains.practical = { mastery: known.length ? mean(known) : o.priorMean, evidence: known.length ? 30 : 0 };
+    // old project/mock evidence fades toward the prior instead of representing current ability forever
+    const fresh = known.length ? Math.pow(0.5, (idx - lastPracticalIdx) / o.practicalHalfLifeWeeks) : 0;
+    domains.practical = {
+      mastery: known.length ? o.priorMean + (mean(known) - o.priorMean) * fresh : o.priorMean,
+      evidence: 30 * fresh,
+    };
     return { week: wk.week, date: wk.date, subjects, domains };
   });
 }
@@ -176,6 +209,34 @@ export function linkograph(series, o) {
   };
 }
 
+function residualStd(ys) {
+  if (ys.length < 3) return 0;
+  const xs = ys.map((_, i) => i);
+  const b = theilSen(xs, ys);
+  const a = median(ys.map((y, i) => y - b * i));
+  return std(ys.map((y, i) => y - (a + b * i)));
+}
+
+/** Simple alternatives to the linkograph, kept for the validation study (see research/evaluate.js). */
+export function switchingMeasures(series) {
+  const dominant = series
+    .map((wk) => Object.entries(wk.subjects ?? {}).sort((a, b) => b[1].attempted - a[1].attempted)[0])
+    .filter((e) => e && e[1].attempted > 0)
+    .map((e) => e[0]);
+  let switches = 0;
+  for (let i = 1; i < dominant.length; i++) if (dominant[i] !== dominant[i - 1]) switches++;
+  const switchRate = dominant.length > 1 ? (100 * switches) / (dominant.length - 1) : 0;
+  const totals = {};
+  let all = 0;
+  for (const wk of series) for (const [slug, v] of Object.entries(wk.subjects ?? {})) { totals[slug] = (totals[slug] ?? 0) + v.attempted; all += v.attempted; }
+  let H = 0;
+  for (const t of Object.values(totals)) { const p = t / all; if (p > 0) H -= p * Math.log(p); }
+  const practiceEntropy = all ? (100 * H) / Math.log(SUBJECTS.length) : 0;
+  const recent = new Set();
+  for (const wk of series.slice(-4)) for (const [slug, v] of Object.entries(wk.subjects ?? {})) if (v.attempted > 0) recent.add(slug);
+  return { switchRate, practiceEntropy, topicDiversity: (100 * recent.size) / SUBJECTS.length };
+}
+
 export function descriptorsAt(series, ssSeries, state, w, o) {
   const prefix = series.slice(0, w + 1);
   const attempts = prefix.map((wk) => Object.values(wk.subjects ?? {}).reduce((s, v) => s + (v.attempted ?? 0), 0));
@@ -184,8 +245,16 @@ export function descriptorsAt(series, ssSeries, state, w, o) {
     ? clamp(theilSen(window.map((_, i) => i), window), -10, 10)
     : 0;
   const link = linkograph(prefix, o);
+  const recentSS = ssSeries.slice(Math.max(0, w + 1 - o.momentumWindow), w + 1);
+  const accel = ssSeries.slice(0, w + 1).length >= 6
+    ? (() => { const a = ssSeries.slice(w - 2, w + 1); const b = ssSeries.slice(w - 5, w - 2); return theilSen([0, 1, 2], a) - theilSen([0, 1, 2], b); })()
+    : 0;
   return {
     momentum,
+    practiceRegularity: consistencyOf(attempts, o.minWeeklyAttempts),
+    scoreVolatility: residualStd(recentSS),
+    acceleration: clamp(accel, -10, 10),
+    ...switchingMeasures(prefix),
     consistency: consistencyOf(attempts, o.minWeeklyAttempts),
     balance: balanceOf(state, o),
     surge: surgeOf(attempts),
@@ -246,6 +315,8 @@ export function analyze(series, options = {}) {
   const o = { ...ENGINE_DEFAULTS, ...options };
   const ablate = options.ablate ?? {};
   if (!series?.length) return { empty: true, message: 'No activity recorded yet. Attempt a quiz to start your trajectory.' };
+  validateSeries(series);
+  o.roleWeights = (ROLE_PROFILES[o.targetRole] ?? ROLE_PROFILES.general).weights;
 
   const states = buildStates(series, o);
   const n = series.length;
@@ -277,7 +348,7 @@ export function analyze(series, options = {}) {
   const momentum = finalDesc.momentum;
   const core = readinessFrom(dv, finalTq, ablate.forecast ? 0 : momentum, o);
 
-  // evidence-adjusted uncertainty band (membership shift by ±delta)
+  // Sensitivity band (NOT a statistical confidence interval): inputs shifted by +/-delta, delta shrinking with evidence
   const weeksFactor = Math.min(1, n / 6);
   const evidenceFactor = mean(QUESTION_DOMAINS.map((d) => Math.min(1, last.domains[d].evidence / 30)));
   const confidence = 0.4 * weeksFactor + 0.5 * evidenceFactor + 0.1 * (last.domains.practical.evidence > 0 ? 1 : 0);
@@ -358,20 +429,29 @@ export function analyze(series, options = {}) {
     });
 
   const { attempts: _a, link, ...descriptors } = finalDesc;
+  // role-specific readiness: the same history scored against every role's competency weights
+  const roles = {};
+  if (options.byRole !== false) {
+    for (const [key, prof] of Object.entries(ROLE_PROFILES)) {
+      const r = key === o.targetRole ? { readiness: { score: core.now, projected: core.projected } } : analyze(series, { ...options, targetRole: key, fullSeries: false, byRole: false });
+      roles[key] = { label: prof.label, score: +r.readiness.score.toFixed(2), projected: +r.readiness.projected.toFixed(2) };
+    }
+  }
   return {
-    meta: { weeks: n, targetRole: o.targetRole, roleLabel: role.label, horizonWeeks: o.horizonWeeks, confidence: +confidence.toFixed(3), delta: +delta.toFixed(2) },
+    roles,
+    meta: { weeks: n, targetRole: o.targetRole, roleLabel: role.label, horizonWeeks: o.horizonWeeks, evidenceSufficiency: +confidence.toFixed(3), sensitivityDelta: +delta.toFixed(2), engineVersion: ENGINE_VERSION, configHash: CONFIG_HASH },
     domains: Object.fromEntries(Object.entries(last.domains).map(([d, v]) => [d, { label: DOMAIN_LABELS[d], mastery: +v.mastery.toFixed(2), evidence: +v.evidence.toFixed(1) }])),
     subjects,
     stages: { technical: +ts.crisp.toFixed(2), nontechnical: +ns.crisp.toFixed(2), skillState: +ss.crisp.toFixed(2), trajectoryQuality: +finalTq.toFixed(2) },
     readiness: {
       score: +core.now.toFixed(2),
       label: readinessLabel(core.now),
-      low: +Math.min(lo.now, hi.now, core.now).toFixed(2),
-      high: +Math.max(lo.now, hi.now, core.now).toFixed(2),
+      sensitivityLow: +Math.min(lo.now, hi.now, core.now).toFixed(2),
+      sensitivityHigh: +Math.max(lo.now, hi.now, core.now).toFixed(2),
       projected: +core.projected.toFixed(2),
       projectedLabel: readinessLabel(core.projected),
-      projectedLow: +Math.min(lo.projected, hi.projected, core.projected).toFixed(2),
-      projectedHigh: +Math.max(lo.projected, hi.projected, core.projected).toFixed(2),
+      projectedSensitivityLow: +Math.min(lo.projected, hi.projected, core.projected).toFixed(2),
+      projectedSensitivityHigh: +Math.max(lo.projected, hi.projected, core.projected).toFixed(2),
     },
     trajectory: {
       series: seriesOut,

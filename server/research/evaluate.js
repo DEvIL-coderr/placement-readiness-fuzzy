@@ -11,7 +11,8 @@ import { analyze, buildStates, domainValues, readinessFrom } from '../src/engine
 import { deckFuzzy, staticWeighted } from '../src/engine/baselines.js';
 import { ENGINE_DEFAULTS } from '../src/engine/config.js';
 import { ARCHETYPES, mulberry32, simulateCohort } from '../src/engine/simulate.js';
-import { bootstrapMaeDiff, f1AtThreshold, mae, mean, rmse, spearman } from './stats.js';
+import { auc, bootstrapMaeDiff, f1AtThreshold, mae, mean, rmse, spearman } from './stats.js';
+import { theilSen } from '../src/engine/analyze.js';
 
 const SEED = 42;
 const PER_ARCH = 100;
@@ -39,22 +40,26 @@ function crossCalibrate(pred, truth, folds) {
   return out;
 }
 
-function predictAll(k, task) {
-  const models = { 'B0 Static weighted': [], 'B1 Static fuzzy (prototype)': [], 'A  Skill-state only': [], 'B  + trajectory quality': [], 'C  + forecast only': [], 'D  Full (proposed)': [] };
+function predictAll(k, task, H) {
+  const models = { 'B0 Static weighted': [], 'B1 Static fuzzy (prototype)': [], 'L  Static + linear trend': [], 'A  Skill-state only': [], 'B  + trajectory quality': [], 'C  + forecast only': [], 'D  Full (proposed)': [] };
   const truth = [];
   const byArch = [];
   for (const s of cohort) {
     const series = s.series.slice(0, k);
-    const state = buildStates(series, { ...ENGINE_DEFAULTS })[k - 1];
+    const states = buildStates(series, { ...ENGINE_DEFAULTS });
+    const state = states[k - 1];
     const dv = domainValues(state);
     models['B0 Static weighted'].push(staticWeighted(dv));
+    const staticSeries = states.map((st) => staticWeighted(domainValues(st))).slice(-4);
+    const slope = staticSeries.length >= 3 ? theilSen(staticSeries.map((_, i) => i), staticSeries) : 0;
+    models['L  Static + linear trend'].push(Math.min(100, Math.max(0, staticWeighted(dv) + slope * H)));
     models['B1 Static fuzzy (prototype)'].push(deckFuzzy({
       coding: state.subjects.coding.mastery,
       dsa: state.subjects.dsa.mastery,
       aptitude: dv.aptitude,
       communication: dv.communication,
     }).score);
-    const opt = { fullSeries: false };
+    const opt = { fullSeries: false, byRole: false, horizonWeeks: H };
     models['A  Skill-state only'].push(analyze(series, { ...opt, ablate: { trajectory: true, forecast: true } }).readiness.score);
     models['B  + trajectory quality'].push(analyze(series, { ...opt, ablate: { forecast: true } }).readiness.score);
     models['C  + forecast only'].push(analyze(series, { ...opt, ablate: { trajectory: true } }).readiness.projected);
@@ -69,8 +74,8 @@ function predictAll(k, task) {
   return { models: cal, raw, truth, byArch };
 }
 
-function table(k, task) {
-  const { models, raw, truth, byArch } = predictAll(k, task);
+function table(k, task, H = ENGINE_DEFAULTS.horizonWeeks) {
+  const { models, raw, truth, byArch } = predictAll(k, task, H);
   const base = models['B0 Static weighted'];
   const rows = Object.entries(models).map(([name, pred]) => {
     const ci = bootstrapMaeDiff(pred, base, truth);
@@ -92,7 +97,7 @@ function table(k, task) {
       Full: mae(idx.map((i) => models['D  Full (proposed)'][i]), idx.map((i) => truth[i])),
     };
   }
-  return { k, task, n: truth.length, prevalence: mean(truth.map((t) => (t >= THRESH ? 1 : 0))), rows, perArch };
+  return { k, task, horizon: H, n: truth.length, prevalence: mean(truth.map((t) => (t >= THRESH ? 1 : 0))), rows, perArch };
 }
 
 function sensitivity(k = 8) {
@@ -104,7 +109,7 @@ function sensitivity(k = 8) {
     const cleanF = [], noisyF = [], cleanB = [], noisyB = [];
     for (const s of cohort) {
       const series = s.series.slice(0, k);
-      const res = analyze(series, { fullSeries: false });
+      const res = analyze(series, { fullSeries: false, byRole: false });
       const dv = Object.fromEntries(Object.entries(res.domains).map(([d, v]) => [d, v.mastery]));
       const noisy = Object.fromEntries(Object.entries(dv).map(([d, v]) => [d, clamp(v + sigma * gauss())]));
       const tq = res.stages.trajectoryQuality;
@@ -130,7 +135,7 @@ function patternRecovery(k = 8) {
   const out = {};
   for (const a of ARCHETYPES) {
     const group = cohort.filter((s) => s.archetype === a);
-    const res = group.map((s) => analyze(s.series.slice(0, k), { fullSeries: false }).trajectory);
+    const res = group.map((s) => analyze(s.series.slice(0, k), { fullSeries: false, byRole: false }).trajectory);
     const own = res.map((r) => r.patterns[target[a]]);
     const wrong = res.map((r) => Math.max(...Object.entries(r.patterns).filter(([key]) => key !== target[a]).map(([, v]) => v)));
     out[a] = {
@@ -143,20 +148,41 @@ function patternRecovery(k = 8) {
   return out;
 }
 
+function hoppingDetectors(k = 8) {
+  const rows = cohort.map((s) => {
+    const r = analyze(s.series.slice(0, k), { fullSeries: false, byRole: false }).trajectory.descriptors;
+    return { arch: s.archetype, orphan: r.hopping, switchRate: r.switchRate, entropy: r.practiceEntropy, diversity: r.topicDiversity };
+  });
+  const out = {};
+  for (const [name, key] of [['Linkograph orphan ratio', 'orphan'], ['Topic-switching frequency', 'switchRate'], ['Practice entropy', 'entropy'], ['Topic diversity (4 wk)', 'diversity']]) {
+    const pos = rows.filter((r) => r.arch === 'hopper').map((r) => r[key]);
+    const vsAll = rows.filter((r) => r.arch !== 'hopper').map((r) => r[key]);
+    const vsSteady = rows.filter((r) => r.arch === 'steady').map((r) => r[key]);
+    const a1 = auc(pos, vsAll);
+    const a2 = auc(pos, vsSteady);
+    // direction-adjusted: a detector that is LOW for hoppers is still informative
+    out[name] = { direction: a1 >= 0.5 ? 'higher = hopping' : 'lower = hopping', aucVsAll: Math.max(a1, 1 - a1), aucVsSteady: Math.max(a2, 1 - a2) };
+  }
+  return out;
+}
+
 const results = {
   setup: { seed: SEED, studentsPerArchetype: PER_ARCH, archetypes: ARCHETYPES, horizonWeeks: H, readyThreshold: THRESH, note: 'SIMULATED data - validates the protocol, not real-world accuracy.' },
-  forecast_week8: table(8, 'forecast'),
-  forecast_week4: table(4, 'forecast'),
+  forecast_week8: table(8, 'forecast', 4),
+  forecast_week8_h2: table(8, 'forecast', 2),
+  forecast_week6_h6: table(6, 'forecast', 6),
+  forecast_week4: table(4, 'forecast', 4),
   current_week8: table(8, 'current'),
+  hoppingDetectors: hoppingDetectors(8),
   patternRecovery: patternRecovery(8),
   sensitivity: sensitivity(8),
 };
 fs.writeFileSync(new URL('./results.json', import.meta.url), JSON.stringify(results, null, 2));
 
 const f = (x, d = 2) => x.toFixed(d);
-for (const key of ['forecast_week8', 'forecast_week4', 'current_week8']) {
+for (const key of ['forecast_week8', 'forecast_week8_h2', 'forecast_week6_h6', 'forecast_week4', 'current_week8']) {
   const t = results[key];
-  console.log(`\n### ${t.task} task, observed ${t.k} weeks (n=${t.n}, prevalence of "ready" = ${f(t.prevalence)})`);
+  console.log(`\n### ${t.task} task, observed ${t.k} weeks, horizon ${t.horizon ?? '-'} wk (n=${t.n}, prevalence of "ready" = ${f(t.prevalence)})`);
   console.log('| Model | raw bias | calibrated MAE | RMSE | Spearman | F1@60 | ΔMAE vs B0 [95% CI] |');
   console.log('|---|---|---|---|---|---|---|');
   for (const r of t.rows) {
@@ -168,6 +194,10 @@ for (const key of ['forecast_week8', 'forecast_week4', 'current_week8']) {
     for (const [a, v] of Object.entries(t.perArch)) console.log(`  ${a.padEnd(13)} ${f(v.B0)} → ${f(v.Full)}`);
   }
 }
+console.log('\n### Hopping detectors: AUC for identifying simulated topic hoppers (0.5 = chance)');
+console.log('| Detector | direction | AUC vs all others | AUC vs steady learners |');
+console.log('|---|---|---|---|');
+for (const [n, v] of Object.entries(results.hoppingDetectors)) console.log(`| ${n} | ${v.direction} | ${f(v.aucVsAll, 3)} | ${f(v.aucVsSteady, 3)} |`);
 console.log('\n### Pattern recovery (week 8, simulated archetypes)');
 console.log('| Archetype | Expected pattern | degree ≥ 0.4 | mean degree | dominant = expected |');
 console.log('|---|---|---|---|---|');

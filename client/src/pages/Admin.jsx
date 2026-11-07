@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import AnalysisView from '../AnalysisView.jsx';
 
-const EMPTY = { subject: 'dsa', type: 'mcq', text: '', optionsText: '', correctIndex: 0, answer: '', explanation: '', difficulty: 'medium', topic: '', frequency: 50, active: true };
+const EMPTY = { subject: 'dsa', type: 'mcq', text: '', optionsText: '', correctIndex: 0, answer: '', explanation: '', difficulty: 'medium', topic: '', frequency: 50, rankSource: 'editorial', active: true };
 
 function QuestionsTab() {
   const [meta, setMeta] = useState(null);
@@ -23,7 +23,7 @@ function QuestionsTab() {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
   function toBody() {
-    const body = { subject: form.subject, type: form.type, text: form.text, difficulty: form.difficulty, topic: form.topic, frequency: Number(form.frequency), active: form.active, explanation: form.explanation };
+    const body = { subject: form.subject, type: form.type, text: form.text, difficulty: form.difficulty, topic: form.topic, frequency: Number(form.frequency), rankSource: form.rankSource, active: form.active, explanation: form.explanation };
     if (form.type === 'mcq') { body.options = form.optionsText.split('\n').map((s) => s.trim()).filter(Boolean); body.correctIndex = Number(form.correctIndex); }
     else body.answer = form.answer;
     return body;
@@ -40,13 +40,23 @@ function QuestionsTab() {
   }
   function edit(q) {
     setEditing(q._id);
-    setForm({ subject: q.subject, type: q.type, text: q.text, optionsText: (q.options ?? []).join('\n'), correctIndex: q.correctIndex ?? 0, answer: q.answer ?? '', explanation: q.explanation ?? '', difficulty: q.difficulty, topic: q.topic ?? '', frequency: q.frequency, active: q.active });
+    setForm({ subject: q.subject, type: q.type, text: q.text, optionsText: (q.options ?? []).join('\n'), correctIndex: q.correctIndex ?? 0, answer: q.answer ?? '', explanation: q.explanation ?? '', difficulty: q.difficulty, topic: q.topic ?? '', frequency: q.frequency, rankSource: q.rankSource ?? 'editorial', active: q.active });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   async function remove(q) {
     if (!window.confirm('Delete this question?')) return;
     await api(`/questions/${q._id}`, { method: 'DELETE' });
     load();
+  }
+  const [csv, setCsv] = useState('');
+  async function importCsv() {
+    setMsg('');
+    try {
+      const r = await api('/questions/import-csv', { method: 'POST', body: { csv } });
+      setMsg(`Imported ${r.inserted}, duplicates ${r.duplicates}, invalid ${r.invalid.length}`);
+      setCsv('');
+      load?.();
+    } catch (e) { setMsg(e.message); }
   }
   async function importBulk() {
     setMsg('');
@@ -67,6 +77,7 @@ function QuestionsTab() {
           <label>Type<select value={form.type} onChange={set('type')}><option value="mcq">MCQ (auto-graded)</option><option value="descriptive">Descriptive (interview Q&amp;A)</option></select></label>
           <label>Difficulty<select value={form.difficulty} onChange={set('difficulty')}><option>easy</option><option>medium</option><option>hard</option></select></label>
           <label>Frequency (0–100)<input type="number" min="0" max="100" value={form.frequency} onChange={set('frequency')} /></label>
+          <label>Frequency source<select value={form.rankSource} onChange={set('rankSource')}><option value="editorial">Editorial estimate</option><option value="expert">Expert / faculty</option><option value="placement_records">Placement records</option></select></label>
         </div>
         <label>Question<textarea value={form.text} onChange={set('text')} required minLength={8} rows={2} /></label>
         {form.type === 'mcq' ? (
@@ -89,6 +100,13 @@ function QuestionsTab() {
         <p className="muted small">Paste an array of question objects (same fields as the API). Duplicates are detected automatically by normalised text.</p>
         <textarea rows={6} value={bulk} onChange={(e) => setBulk(e.target.value)} placeholder='[{"subject":"dsa","type":"mcq","text":"…","options":["a","b"],"correctIndex":0,"difficulty":"easy","frequency":80}]' />
         <p><button onClick={importBulk} disabled={!bulk.trim()}>Import</button></p>
+      </details>
+
+      <details className="card">
+        <summary>Bulk import (CSV)</summary>
+        <p className="muted small">Header: subject,type,text,option1..option6,correct (A–F or 1–6),answer,explanation,difficulty,topic,frequency,rankSource. Max 500 rows.</p>
+        <textarea rows={5} value={csv} onChange={(e) => setCsv(e.target.value)} />
+        <p><input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files[0]?.text().then(setCsv)} /> <button onClick={importCsv} disabled={csv.trim().length < 10}>Import CSV</button></p>
       </details>
 
       <div className="toolbar">
