@@ -179,12 +179,19 @@ function ResearchTab() {
     catch (e) { setMsg(e.message); }
   }
   async function clear() { await api('/admin/calibration', { method: 'DELETE' }); setCal(null); setMsg('Calibration removed (raw scores shown).'); }
-  async function download() {
-    const res = await api('/admin/export/dataset.csv', { raw: true });
+  async function save(path, filename) {
+    const res = await api(path, { raw: true });
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement('a');
-    a.href = url; a.download = 'prep-snapshots.csv'; a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
+  }
+  const download = () => save('/admin/export/dataset.csv', 'prep-snapshots.csv');
+  const [fac, setFac] = useState({ name: '', email: '', password: '' });
+  async function createFaculty(e) {
+    e.preventDefault(); setMsg('');
+    try { const r = await api('/admin/faculty', { method: 'POST', body: fac }); setMsg(`Faculty account created for ${r.faculty.email}. Share the password with them privately.`); setFac({ name: '', email: '', password: '' }); }
+    catch (err) { setMsg(err.message); }
   }
 
   return (
@@ -194,6 +201,17 @@ function ResearchTab() {
         {stats ? <ul className="plain"><li><span>Students</span><strong>{stats.students}</strong></li><li><span>Questions</span><strong>{stats.questions}</strong></li><li><span>Recorded attempts</span><strong>{stats.attempts}</strong></li><li><span>Faculty ratings</span><strong>{stats.ratings}</strong></li></ul> : <p className="muted">Loading…</p>}
         <p><button onClick={download}>Download dataset (CSV)</button></p>
         <p className="muted small">One row per student per day with all engine outputs and the matching faculty rating. Use it for the baseline comparison, ablation and agreement statistics in the paper.</p>
+      </section>
+      <section className="card span-6">
+        <h3>Faculty accounts (blind rating)</h3>
+        <p className="muted small">Faculty log in with their own account and see only a rating form, never system scores. Do not rate students from this admin account if you want blind ratings.</p>
+        <form onSubmit={createFaculty}>
+          <label>Name<input value={fac.name} onChange={(e) => setFac({ ...fac, name: e.target.value })} required minLength={2} /></label>
+          <label>Email<input type="email" value={fac.email} onChange={(e) => setFac({ ...fac, email: e.target.value })} required /></label>
+          <label>Temporary password (min 8)<input type="password" value={fac.password} onChange={(e) => setFac({ ...fac, password: e.target.value })} required minLength={8} autoComplete="new-password" /></label>
+          <button type="submit">Create faculty account</button>
+        </form>
+        <p><button onClick={() => save('/admin/export/faculty.csv', 'faculty-assessments.csv')}>Download faculty ratings (CSV)</button></p>
       </section>
       <section className="card span-6">
         <h3>Calibrate against faculty ratings</h3>

@@ -29,8 +29,9 @@ Two faculty raters per student where possible.
 - Overall placement readiness, 0 to 100, with anchors: 0 to 29 not ready, 30 to 54 needs substantial work, 55 to 74 nearly ready, 75 to 100 ready.
 - Per domain 0 to 100: DSA & coding, core subjects, aptitude, communication, practical.
 - Dominant preparation pattern (steady growth, last-minute surge, skill hopping, unbalanced, stagnation or decline) and top-3 priority subjects.
-- Raters are blind to system output. Report inter-rater agreement (ICC for scores, kappa for patterns). Note: the current admin rating screen records one overall rating per call; domain, pattern and priority ratings need a small extension before the pilot.
-- Caution: the `/ratings` endpoint is available to admins, who can also open student analyses. Use a separate rating form or sealed ratings to keep raters blind.
+- Raters are blind to system output. Report inter-rater agreement (ICC for scores, kappa for patterns).
+- Implemented: admins create **faculty accounts** (Admin -> Research data). A faculty login sees only a rating form (names only; overall, optional domain scores, dominant pattern, up to 3 priority subjects, notes) and never any system score, forecast, pattern or recommendation. Each rater-student-round rating can be edited and is stored once. Export with `GET /api/admin/export/faculty.csv`; the overall rating also feeds calibration.
+- Do not rate from the admin account: admins can open student analyses, which would break blindness.
 
 ## 6. Analysis plan
 - Models compared with the same 2-fold cross-fitted calibration: B0 static weighted, B1 prototype fuzzy, L static + linear trend, full model, ablations A to D (see `server/research/evaluate.js`).
@@ -50,7 +51,7 @@ Two faculty raters per student where possible.
 Self-reported project and mock scores, single institution, small sample, short window relative to the placement season, expert-set rule weights and priors, a question bank whose frequency scores are editorial estimates, and the calibration being fitted on the same cohort (cross-fitting only partly mitigates this).
 
 ## 9. Application changes needed before the pilot
-- Faculty form with domain, pattern and priority ratings, with blind mode.
+- ~~Faculty form with domain, pattern and priority ratings, with blind mode.~~ Done (not yet tested against a live database).
 - Consent screen at registration and a data-export or deletion option.
 - Pseudonymised analysis export.
 - Decide whether the forecast stays a contribution (it must beat L) or becomes exploratory.

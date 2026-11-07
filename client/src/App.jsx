@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth.jsx';
 import Admin from './pages/Admin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Demo from './pages/Demo.jsx';
+import Faculty from './pages/Faculty.jsx';
 import Interview from './pages/Interview.jsx';
 import Log from './pages/Log.jsx';
 import Practice from './pages/Practice.jsx';
@@ -28,8 +29,22 @@ function Shell() {
     return <AuthPage mode={path === '/register' ? 'register' : 'login'} />;
   }
 
-  const items = user.role === 'admin' ? [...NAV, ['/admin', 'Admin']] : NAV;
+  const isFaculty = user.role === 'faculty';
+  const items = isFaculty ? [['/faculty', 'Faculty rating']] : user.role === 'admin' ? [...NAV, ['/admin', 'Admin']] : NAV;
   let page;
+  if (isFaculty) {
+    page = <Faculty />;
+    return (
+      <>
+        <header className="top">
+          <strong className="brand">Placement Readiness</strong>
+          <nav>{items.map(([to, label]) => <a key={to} href={`#${to}`} className="active">{label}</a>)}</nav>
+          <span className="who">{user.name} <button onClick={() => { logout(); go('/login'); }}>Sign out</button></span>
+        </header>
+        <main className="page">{page}</main>
+      </>
+    );
+  }
   switch (path) {
     case '/practice': page = <Practice />; break;
     case '/interview': page = <Interview />; break;

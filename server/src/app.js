@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/util.js';
 import adminRoutes from './routes/admin.js';
 import analysisRoutes from './routes/analysis.js';
 import authRoutes from './routes/auth.js';
+import facultyRoutes from './routes/faculty.js';
 import progressRoutes from './routes/progress.js';
 import questionRoutes from './routes/questions.js';
 import quizRoutes from './routes/quiz.js';
@@ -24,6 +25,7 @@ export function createApp() {
   app.use('/api/progress', progressRoutes);
   app.use('/api/analysis', analysisRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/faculty', facultyRoutes);
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
   app.use(errorHandler);

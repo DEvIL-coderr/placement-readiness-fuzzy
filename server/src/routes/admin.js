@@ -4,7 +4,9 @@ import { fitLinear } from '../engine/calibration.js';
 import { ENGINE_VERSION } from '../engine/config.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 import { validate, wrap } from '../middleware/util.js';
-import { Attempt, ExpertRating, Question, Setting, Snapshot, User } from '../models/index.js';
+import bcrypt from 'bcryptjs';
+import { Attempt, ExpertRating, FacultyAssessment, Question, Setting, Snapshot, User } from '../models/index.js';
+import { facultyCsv } from '../services/faculty.js';
 import { analyzeStudent } from '../services/analysis.js';
 
 const router = Router();
@@ -47,6 +49,21 @@ router.post('/ratings', validate(ratingBody), wrap(async (req, res) => {
   await analyzeStudent(student); // make sure a same-day snapshot exists to pair with the rating
   const r = await ExpertRating.create({ student: student._id, rater: req.user._id, rating: req.body.rating, notes: req.body.notes });
   res.status(201).json({ rating: r });
+}));
+
+const facultyBody = z.object({ name: z.string().trim().min(2).max(80), email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(100) });
+/** Faculty accounts are created by an admin only (separate from students so ratings stay blind to system output). */
+router.post('/faculty', validate(facultyBody), wrap(async (req, res) => {
+  if (await User.exists({ email: req.body.email })) return res.status(409).json({ error: 'Email already registered' });
+  const u = await User.create({ name: req.body.name, email: req.body.email, passwordHash: await bcrypt.hash(req.body.password, 10), role: 'faculty' });
+  res.status(201).json({ faculty: { id: u._id, name: u.name, email: u.email } });
+}));
+
+router.get('/export/faculty.csv', wrap(async (req, res) => {
+  const rows = await FacultyAssessment.find().sort({ round: 1, createdAt: 1 }).lean();
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="faculty-assessments.csv"');
+  res.send(facultyCsv(rows.map((r) => ({ ...r, student: String(r.student), rater: String(r.rater) }))));
 }));
 
 router.get('/ratings', wrap(async (req, res) => {

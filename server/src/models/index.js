@@ -10,7 +10,7 @@ const userSchema = new Schema(
     name: { type: String, required: true, trim: true, maxlength: 80 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
-    role: { type: String, enum: ['student', 'admin'], default: 'student' },
+    role: { type: String, enum: ['student', 'admin', 'faculty'], default: 'student' },
     targetRole: { type: String, enum: Object.keys(ROLE_PROFILES), default: 'general' },
     placementDate: { type: Date },
   },
@@ -121,10 +121,26 @@ const ratingSchema = new Schema(
     student: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     rater: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     rating: { type: Number, min: 0, max: 100, required: true },
+    round: { type: String, default: '' },
     notes: { type: String, maxlength: 500 },
   },
   { timestamps: true },
 );
+
+const facultySchema = new Schema(
+  {
+    student: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    rater: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    round: { type: String, required: true },
+    overall: { type: Number, min: 0, max: 100, required: true },
+    domains: { type: Schema.Types.Mixed, default: {} },
+    pattern: { type: String, default: null },
+    priorities: { type: [String], default: [] },
+    notes: { type: String, maxlength: 500, default: '' },
+  },
+  { timestamps: true },
+);
+facultySchema.index({ student: 1, rater: 1, round: 1 }, { unique: true });
 
 const settingSchema = new Schema({ key: { type: String, unique: true, required: true }, value: Schema.Types.Mixed });
 
@@ -135,4 +151,5 @@ export const Attempt = model('Attempt', attemptSchema);
 export const PracticalLog = model('PracticalLog', practicalSchema);
 export const Snapshot = model('Snapshot', snapshotSchema);
 export const ExpertRating = model('ExpertRating', ratingSchema);
+export const FacultyAssessment = model('FacultyAssessment', facultySchema);
 export const Setting = model('Setting', settingSchema);

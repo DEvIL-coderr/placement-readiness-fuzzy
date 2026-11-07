@@ -24,6 +24,8 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+export const requireRole = (...roles) => (req, res, next) => (roles.includes(req.user?.role) ? next() : res.status(403).json({ error: 'Access denied for this account type' }));
+
 export function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
   return next();
