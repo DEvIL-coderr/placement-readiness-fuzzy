@@ -74,3 +74,7 @@ Closest neighbours found (read abstracts/pages before citing; only the Zenodo on
 - *Predicting Long-Term Student Outcomes from Short-Term EdTech Log Data*, ACM 2025 — temporal logs, non-fuzzy (not opened).
 - Fuzzy competence-space learning-path papers (MDPI Axioms 2025) — fuzzy recommendation, no placement.
 No fuzzy-linkography-in-education paper surfaced.
+
+
+## 11. Search log update (2026-11-07)
+IEEE Xplore was searched directly (3 queries, 15 on-topic title hits, 0 hits combining fuzzy + placement/employability + temporal terms); details in `docs/search-log-ieee.md`. **Scopus (preview-only account) and ACM DL (bot check) were NOT searched.** Before submission, repeat on Scopus (or Web of Science) via institutional access and on ACM DL, then add duplicate removal and abstract screening. Read in full and cite: George et al., IEEE Access 2026 (fuzzy inference + XAI for academic performance to technical demand), Casuat et al. 2020, Navalgund 2020, Venkatachalam 2021, Ainapure et al. 2022.
